@@ -14,7 +14,9 @@ white = "#ffffff"
 
 theme = {}
 
-theme.wallpaper_cmd = { "awsetbg /home/rom/.config/awesome/themes/powerarrow/wallpapers/wallpaper-2552963.jpg" }
+wallpaper1 = "/home/whyrusleeping/.config/awesome/themes/powerarrow/wallpapers/wallpaper-2552963.jpg"
+theme.wallpaper = wallpaper1
+theme.wallpaper_cmd = "nitrogen --restore"
 
 theme.font                                  = "Terminus 9"
 theme.fg_normal                             = "#AAAAAA"

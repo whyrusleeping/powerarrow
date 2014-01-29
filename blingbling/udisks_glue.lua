@@ -1,3 +1,4 @@
+--@author cedlemo
 local helpers = require("blingbling.helpers")
 local awful = require("awful")
 local naughty = require("naughty")
@@ -9,10 +10,12 @@ local pairs = pairs
 local type = type
 local setmetatable = setmetatable
 local table = table
-local capi = { image = image , widget= widget}
+local wibox = require("wibox")
+local debug = debug
+---A menu for udisks-glue informations and actions
+--@module blingbling.udisks_glue
 
----Dynamic menu based on udisks-glue events.
-module("blingbling.udisks_glue")
+local udisks_glue = { mt = {} }
 
 local data = setmetatable( {}, { __mode = "k"})
 
@@ -37,15 +40,21 @@ local function unmounted_submenu(ud_menu,a_device)
   }
   return my_submenu
 end
-
+local function unmount_multiple_partitions(ud_menu, a_device, mount_points)
+  local command = "bash -c \""
+  for _,m in ipairs(mount_points) do
+		command = command .. udisks_send(ud_menu, "unmount", m)..";"
+  end
+  command = command .. udisks_send(ud_menu, "detach", a_device) .. "\""
+	return command
+end
 local function generate_menu(ud_menu)
 --all_devices={device_name={partition_1,partition_2}
 --devices_type={device_name=Usb or Cdrom}
 --partition_state={partition_name = mounted or unmounted}
-  my_menu={}
-  debug=1 
+  local my_menu={}
   if next(data[ud_menu].all_devices) ~= nil then
-    for k,v in pairs(data[ud_menu].all_devices) do
+		for k,v in pairs(data[ud_menu].all_devices) do
       local device_type=data[ud_menu].devices_type[k]
       local action=""
       if device_type == "Usb" then
@@ -55,16 +64,19 @@ local function generate_menu(ud_menu)
       end
       local check_remain_mounted_partition =0
       my_submenu={}
+      local mounted_partitions = {}
       for j,x in ipairs(v) do
         if data[ud_menu].partition_state[x] == "mounted" then
           check_remain_mounted_partition = 1
           table.insert(my_submenu,{x, mounted_submenu(ud_menu, x), data[ud_menu][device_type.."_icon"]})
+          table.insert(mounted_partitions,x)
         else
           table.insert(my_submenu,{x, unmounted_submenu(ud_menu, x), data[ud_menu][device_type.."_icon"]})
         end
       end
       if check_remain_mounted_partition == 1 then
-        table.insert(my_submenu,{"Can\'t "..action, {{k .." busy"}}, data[ud_menu][action.."_icon"]})
+        table.insert(my_submenu,{"unmount all", unmount_multiple_partitions(ud_menu, k, mounted_partitions ), data[ud_menu]["umount_icon"]})
+        --table.insert(my_submenu,{"Can\'t "..action, {{k .." busy"}}, data[ud_menu][action.."_icon"]})
       else
         table.insert(my_submenu,{action, udisks_send(ud_menu, action, k), data[ud_menu][action.."_icon"]})
       end
@@ -79,7 +91,7 @@ local function generate_menu(ud_menu)
 end
 
 local function display_menu(ud_menu)
-  ud_menu.widget:buttons(awful.util.table.join(
+  ud_menu:buttons(awful.util.table.join(
     awful.button({ }, 1, function()
       if data[ud_menu].menu_visible == "false" then
         data[ud_menu].menu_visible = "true"
@@ -97,7 +109,7 @@ local function display_menu(ud_menu)
 ))
 end
 
-function mount_device(ud_menu,device, mount_point, device_type) 
+function udisks_glue.mount_device(ud_menu,device, mount_point, device_type) 
 --  generate the device_name
   if device_type == "Usb" then
     device_name = string.gsub(device,"%d*","")
@@ -107,11 +119,9 @@ function mount_device(ud_menu,device, mount_point, device_type)
 --  add all_devices entry:
 --  check if device is already registred
   if data[ud_menu].all_devices[device_name] == nil then
---      device not yet registred
       data[ud_menu].all_devices[device_name]={device}
       data[ud_menu].devices_type[device_name] = device_type
-  else
---      device, registred, check if partition already registred      
+  else    
       partition_already_registred = 0
       for i, v in ipairs(data[ud_menu].all_devices[device_name]) do
         if v == device then
@@ -125,14 +135,15 @@ function mount_device(ud_menu,device, mount_point, device_type)
   data[ud_menu].partition_state[device]="mounted"
   data[ud_menu].menu:hide()  
   data[ud_menu].menu_visible = "false"
-  naughty.notify({title = device_type..":", text =device .. " mounted on" .. mount_point, timeout = 3})
+  naughty.notify({title = device_type..":", text =device .. " mounted on" .. mount_point, timeout = 10})
+  return ud_menu 
 end
 
 function unmount_device(ud_menu, device, mount_point, device_type)
   data[ud_menu].partition_state[device]="unmounted"
   data[ud_menu].menu:hide()  
   data[ud_menu].menu_visible = "false"
-  naughty.notify({title = device_type..":", text = device .." unmounted", timeout = 3})
+  naughty.notify({title = device_type..":", text = device .." unmounted", timeout = 10})
 end
 
 function remove_device(ud_menu, device, mount_point, device_type )
@@ -158,88 +169,77 @@ function remove_device(ud_menu, device, mount_point, device_type )
   end
   data[ud_menu].menu:hide()  
   data[ud_menu].menu_visible = "false"
-  naughty.notify({title = device_type ..":", text = device .." removed", timeout = 3})
+  naughty.notify({title = device_type ..":", text = device .." removed", timeout = 10})
 end
-
----Set the mount icon
---@param ud_menu an udisks-glue menu
+---Define the icon for the mount action in the menu.
+--@usage ud_widget:set_mount_icon(icon)
+--@param ud_menu the udisk-glue menu widget or nothing if you use widget:set_mount_icon
 --@param an_image an image file name
 function set_mount_icon(ud_menu,an_image)
   data[ud_menu].mount_icon=an_image
   return ud_menu
 end
----Set the unmount icon
---@param ud_menu an udisks-glue menu
+---Define the icon for the umount action in the menu.
+--@usage ud_widget:set_umount_icon(icon)
+--@param ud_menu the udisk-glue menu widget or nothing if you use widget:set_umount_icon
 --@param an_image an image file name
 function set_umount_icon(ud_menu,an_image)
   data[ud_menu].umount_icon=an_image
   return ud_menu
 end
----Set the detach icon
---@param ud_menu an udisks-glue menu
+---Define the icon for the detach action in the menu.
+--@usage ud_widget:set_detach_icon(icon)
+--@param ud_menu the udisk-glue menu widget or nothing if you use widget:set_detach_icon
 --@param an_image an image file name
 function set_detach_icon(ud_menu,an_image)
   data[ud_menu].detach_icon=an_image
   return ud_menu
 end
----Set the eject icon
---@param ud_menu an udisks-glue menu
+---Define the icon for eject action in the menu.
+--@usage ud_widget:set_eject_icon(icon)
+--@param ud_menu the udisk-glue menu widget or nothing if you use widget:set_eject_icon
 --@param an_image an image file name
 function set_eject_icon(ud_menu,an_image)
   data[ud_menu].eject_icon=an_image
   return ud_menu
 end
----Set the usb device icon
---@param ud_menu an udisks-glue menu
+---Define the icon for usb devices in the menu.
+--@usage ud_widget:set_Usb_icon(icon)
+--@param ud_menu the udisk-glue menu widget or nothing if you use widget:set_Usb_icon
 --@param an_image an image file name
 function set_Usb_icon(ud_menu,an_image)
   data[ud_menu].Usb_icon=an_image
   return ud_menu
 end
----Set the cdrom device icon
---@param ud_menu an udisks-glue menu
+---Define the icon for Cdrom devices in the menu.
+--@usage ud_widget:set_Cdrom_icon(icon)
+--@param ud_menu the udisk-glue menu widget or nothing if you use widget:set_Cdrom_icon
 --@param an_image an image file name
 function set_Cdrom_icon(ud_menu,an_image)
   data[ud_menu].Cdrom_icon=an_image
   return ud_menu
 end
 
----Create a new udisks-menu
---@usage You must launch udisks-glue with the configuration file ( see man udisks-glue ) that I created.
---</br> You need to modify this file according to the widget name you put in your rc.lua:
---</br> for example, in your rc.lua: ud_glue=blingbling.udisks_glue.new(an_image_file_name)
---</br> in the configuration file:
---<code>
---    match optical {
---         automount = true
---         automount_options = ro
---         post_mount_command = "echo \'ud_glue:mount_device(\"%device_file\",\"%mount_point\",\"Cdrom\")\' | awesome-client"
---         post_unmount_command = "echo \'ud_glue:unmount_device(\"%device_file\",\"%mount_point\",\"Cdrom\")\' | awesome-client"
---         post_removal_command = "echo \'ud_glue:remove_device(\"%device_file\",\"%mount_point\",\"Cdrom\")\' | awesome-client"
---     }</code>
---@return ud_menu an udisks-glue menu
---@param menu_icon an image file name
-function new(menu_icon)
-  local ud_menu={}
-  ud_menu.widget=capi.widget({ type = "imagebox"})
-  ud_menu.widget.image=capi.image(menu_icon)
-  
-  ud_menu.image = menu_icon 
+function udisks_glue.new(args)
+  local args = args or {}
+  local ud_menu
+  ud_menu = wibox.widget.imagebox()
+  ud_menu:set_image(args.menu_icon)
+   
   data[ud_menu]={ image = menu_icon, 
                   all_devices= {},
                   devices_type={},
                   partition_state={}, 
                   menu_visible = "false", 
                   menu={},
-                  Cdrom_icon=nil,
-                  Usb_icon=nil,
-                  mount_icon=nil,
-                  umount_icon=nil,
-                  detach_icon=nil,
-                  eject_icon=detach_icon,
-                  mutex={}
+                  Cdrom_icon=args.Cdrom_icon,
+                  Usb_icon=args.Usb_icon,
+                  mount_icon=args.mount_icon,
+                  umount_icon=args.umount_icon,
+                  detach_icon=args.detach_icon,
+                  eject_icon=args.eject_icon,
                   } 
-  ud_menu.mount_device = mount_device
+	ud_menu.mount_device = udisks_glue.mount_device
   ud_menu.unmount_device = unmount_device
   ud_menu.remove_device = remove_device
   ud_menu.set_mount_icon = set_mount_icon
@@ -252,3 +252,9 @@ function new(menu_icon)
   display_menu(ud_menu)
   return ud_menu 
 end
+
+function udisks_glue.mt:__call(...)
+    return udisks_glue.new(...)
+end
+
+return setmetatable(udisks_glue, udisks_glue.mt)

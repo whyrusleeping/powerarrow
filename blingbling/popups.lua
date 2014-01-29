@@ -1,15 +1,15 @@
 --local beautiful = require("beautiful")
+--@author cedlemo
 local naughty = require("naughty")
 local os = require("os")
 local awful = require("awful")
 local helpers =require("blingbling.helpers")
 local string = require("string")
-
----Specific popups
-module("blingbling.popups")
-
+local superproperties = require('blingbling.superproperties')
+---Differents popups for Awesome widgets
+--@module blingbling.popups
 local function colorize(string, pattern, color)
-
+  
  local mystring=""
  mystring=string.gsub(string,pattern,'<span color="'..color..'">%1</span>')
  return mystring
@@ -17,13 +17,13 @@ end
 
 local processpopup = nil
 local processstats = nil
-local proc_offset = 35
+local proc_offset = 25
 
 local function hide_process_info()
   if processpopup ~= nil then
     naughty.destroy(processpopup)
     processpopup = nil
-    proc_offset = 35
+    proc_offset = 25
   end
 end
 local function show_process_info(inc_proc_offset, title_color,user_color, root_color)
@@ -47,7 +47,7 @@ local function show_process_info(inc_proc_offset, title_color,user_color, root_c
 	timeout = 0, hover_timeout = 0.5,
 	})
 end
----Top popup
+---Top popup.
 --It binds a colorized output of the top command to a widget, and the possibility to launch htop with a click on the widget.
 --</br>Example blingbling.popups.htop(mycairograph,{ title_color = "#rrggbbaa", user_color    = "#rrggbbaa", root_color="#rrggbbaa", terminal = "urxvt"})
 --</br>The terminal parameter is not mandatory, htop will be launch in xterm. Mandatory arguments:
@@ -57,39 +57,46 @@ end
 --@param mywidget the widget
 --@param args a table of arguments { title_color = "#rrggbbaa", user_color = "#rrggbbaa", root_color="#rrggbbaa", terminal = a terminal name})
 function htop(mywidget, args)
-mywidget:add_signal("mouse::enter", function()
-    show_process_info(0, args["title_color"], args["user_color"],args["root_color"])
-    end)
-mywidget:add_signal("mouse::leave", function()
+  local args = args or {}
+  mywidget:connect_signal("mouse::enter", function()
+    show_process_info(0,  args["title_color"] or superproperties.htop_title_color,
+                          args["user_color"] or superproperties.htop_user_color,
+                          args["root_color"] or superproperties.htop_root_color)
+  end)
+  mywidget:connect_signal("mouse::leave", function()
     hide_process_info()
-    end)
+  end)
 
 mywidget:buttons(awful.util.table.join(
-       awful.button({ }, 4, function()
-       show_process_info(-1, args["title_color"], args["user_color"],args["root_color"])
-       end),
-       awful.button({ }, 5, function()
-       show_process_info(1, args["title_color"], args["user_color"],args["root_color"])
-       end),
-       awful.button({ }, 1, function()
-        if args["terminal"] then
-          awful.util.spawn_with_shell(args["terminal"] .. " -e htop")
-        else
-          awful.util.spawn_with_shell("xterm" .. " -e htop")
-        end
-       end)
-    ))
+  awful.button({ }, 4, function()
+    show_process_info(-1,  args["title_color"] or superproperties.htop_title_color,
+                           args["user_color"] or superproperties.htop_user_color,
+                           args["root_color"] or superproperties.htop_root_color)
+  end),
+  awful.button({ }, 5, function()
+    show_process_info(1, args["title_color"] or superproperties.htop_title_color,
+                         args["user_color"] or superproperties.htop_user_color,
+                         args["root_color"] or superproperties.htop_root_color)
+  end),
+   awful.button({ }, 1, function()
+    if args["terminal"] then
+      awful.util.spawn_with_shell(args["terminal"] .. " -e htop")
+    else
+      awful.util.spawn_with_shell("xterm" .. " -e htop")
+    end
+  end)
+  ))
 end
 local netpopup = nil
 local function get_netinfo( my_title_color, my_established_color, my_listen_color)
-  str=awful.util.pread('sudo /bin/netstat -pa -u -t | grep -v TIME_WAIT')
+  local str=awful.util.pread('/bin/netstat -pa -u -t | grep -v TIME_WAIT')
   str=colorize(str,"Proto", my_title_color)
   str=colorize(str,'Recv%XQ', my_title_color)
   str=colorize(str,"Send%XQ", my_title_color)
   str=colorize(str,"Local Address", my_title_color)
   str=colorize(str,"Foreign Address", my_title_color)
   str=colorize(str,"State", my_title_color)
-  str=colorize(str,"PID\/Program name", my_title_color)
+  str=colorize(str,'PID/Program name', my_title_color)
   str=colorize(str,"Security Context", my_title_color)
   str=colorize(str,"ESTABLISHED", my_established_color)
   str=colorize(str,"LISTEN", my_listen_color)
@@ -102,13 +109,13 @@ local function hide_netinfo()
   end
 end
 local function show_netinfo(c1,c2,c3)
-    hide_netinfo()
-    netpopup=naughty.notify({
-    text = get_netinfo(c1,c2,c3),
-    timeout = 0, hover_timeout = 0.5,
+  hide_netinfo()
+  netpopup=naughty.notify({
+  text = get_netinfo(c1,c2,c3),
+  timeout = 0, hover_timeout = 0.5,
 })
 end
----Netstat popup
+---Netstat popup.
 --It binds a colorized output of the netstat command to a widget.
 --</br>Example: blingbling.popups.netstat(net,{ title_color = "#rrggbbaa", established_color= "#rrggbbaa", listen_color="#rrggbbaa"})
 --</br>Mandatory arguments:
@@ -119,10 +126,18 @@ end
 --@param mywidget the widget
 --@param args a table { title_color = "#rrggbbaa", established_color= "#rrggbbaa", listen_color="#rrggbbaa"}
 function netstat(mywidget, args)
-    mywidget:add_signal("mouse::enter", function()
-      show_netinfo( args["title_color"], args["established_color"], args["listen_color"])
-    end)
-    mywidget:add_signal("mouse::leave", function()
-        hide_netinfo()
-    end)
+  local args = args or {}
+  mywidget:connect_signal("mouse::enter", function()
+    show_netinfo( args["title_color"] or superproperties.netstat_title_color,
+                  args["established_color"] or superproperties.netstat_established_color,
+                  args["listen_color"] or superproperties.netstat_listen_color)
+  end)
+  mywidget:connect_signal("mouse::leave", function()
+    hide_netinfo()
+  end)
 end
+
+return {
+  htop = htop ,
+  netstat = netstat
+}

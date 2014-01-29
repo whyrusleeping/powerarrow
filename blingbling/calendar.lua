@@ -1,909 +1,604 @@
-local capi = { keygrabber = keygrabber, mouse=mouse, screen = screen, image = image} 
-local util = require('awful.util') 
-local button = require('awful.button') 
-local table = table
-local type = type
-local os = require('os')
-local wibox = wibox
-local widget = widget
-local layout = require('awful.widget.layout')
-local string =string
-local pairs = pairs
-local ipairs = ipairs
-local tonumber = tonumber
+-- @author cedlemo  
+local awful = require('awful')
+local capi = { screen = screen, mouse = mouse }
 local helpers = require('blingbling.helpers')
-local blingbling = { layout = require('blingbling.layout'), menu = require("blingbling.menu") }
-local margins = awful.widget.layout.margins
-local setmetatable = setmetatable
-local beautiful = require('beautiful')
----A calendar widget
-module('blingbling.calendar')
+local text_box = require('blingbling.text_box')
+local superproperties = require('blingbling.superproperties')
+local math = math
+local util = require('awful.util')
+local wibox = require('wibox')
+local pairs = pairs
+local layout = require('wibox.layout')
+local calendar = { mt = {} }
+local data = setmetatable({}, { __mode = "k" })
 
---Define the margin (top, right, bottom, left) in the wibox
+
+---Calendar widget.
+--Show current month user can navigate through previous or next month with two button. The top centered button with current mont string allow user to reload the current month.
+--User can get events from remind and taskwarrior and can add their own events handler.
+--@module blingbling.calendar
+
+---Set the style of the previous and next month button.
+--@usage mycalendar:set_prev_next_widget_style(style)
+--@name set_prev_next_widget_style
 --@class function
---@name set_margin
---@param calendar a calendar widget
---@param margin an integer
+--@param style a table of parameters (see text_box widget in order to find which ones are available)
 
----Define the margin between all the table cell
+---Set the style of the current date text_box widget.
+--@usage mycalendar:set_current_date_widget_style(style)
+--@name set_current_date_widget_style
 --@class function
---@name set_inter_margin
---@param calendar a calendar widget
---@param inter_margin an integer
+--@param style a table of parameters (see text_box widget in order to find which ones are available)
 
----Define the color of the common cells in the table
+---Define the style of the cells that contains the week days names.
+--@usage mycalendar:set_days_of_week_widget_style(style)
+--@name set_days_of_week_widget_style
 --@class function
---@name set_cell_background_color
---@param calendar a calendar widget
---@param color a string like "#rrggbbaa" or "#rrggbb"
+--@param style a table of parameters (see text_box widget in order to find which ones are available)
 
----Define the padding between the text and the background
+---Set the style of the days of the month widget.
+--@usage mycalendar:set_days_of_month_widget_style(style)
+--@name set_days_of_month_widget_style
 --@class function
---@name set_cell_padding
---@param calendar a calendar widget
---@param padding an integer
+--@param style a table of parameters (see text_box widget in order to find which ones are available)
 
----Define the size of the rounded corners of the cells
+---Define the style of the cells that displays the week number (left column).
+--@usage mycalendar:set_weeks_number_widget_style(style)
+--@name set_weeks_number_widget_style
 --@class function
---@name set_rounded_size
---@param calendar a calendar widget
---@param rounded_size an integer
+--@param style a table of parameters (see text_box widget in order to find which ones are available)
 
----Define the color of the text in common cells
---@class function 
---@name set_text_color
---@param calendar a calendar widget
---@param color a string like "#rrggbbaa" or "#rrggbb"
-
----Define the font size in common cells
+---Set the style of the cell used as a corner between the week days line and the week number column.
+--@usage mycalendar:set_corner_widget_style(style)
+--@name set_corner_widget_style
 --@class function
---@name set_font_size
---@param calendar a calendar widget
---@param font_size an integer
+--@param style a table of parameters (see text_box widget in order to find which ones are available)
 
----Define the color of the title cells in the table
+---Define the style used in order to show the current day.
+--@usage mycalendar:set_current_day_widget_style(style)
+--@name set_current_day_widget_style
 --@class function
---@name set_title_background_color
---@param calendar a calendar widget
---@param color a string like "#rrggbbaa" or "#rrggbb"
+--@param style a table of parameters (see text_box widget in order to find which ones are available)
 
----Define the color of the text in title cells
---@class function 
---@name set_title_text_color
---@param calendar a calendar widget
---@param color a string like "#rrggbbaa" or "#rrggbb"
-
----Define the font size in title cells
+---Define the style used when the mouse pass on a cell (only active is set_link_to_external_calendar(true)).
+--@usage mycalendar:set_focus_widget_style(style)
+--@name set_focus_widget_style
 --@class function
---@name set_title_font_size
---@param calendar a calendar widget
---@param font_size an integer
+--@param style a table of parameters (see text_box widget in order to find which ones are available)
 
----Define the color of the columns and lines titles cells in the table
+---Define the style of the big widget on the right that displays information (current day or external calendar events).
+--@usage mycalendar:set_info_cell_style
+--@name set_info_cell_style
 --@class function
---@name set_columns_lines_titles_background_color
---@param calendar a calendar widget
---@param color a string like "#rrggbbaa" or "#rrggbb"
+--@param style a table of parameters (see text_box widget in order to find which ones are available)
 
----Define the color of the text in columns and lines titles cells
---@class function 
---@name set_columns_lines_titles_text_color
---@param calendar a calendar widget
---@param color a string like "#rrggbbaa" or "#rrggbb"
-
----Define the font size in title columns and lines cells
---@class function
---@name set_columns_lines_titles_font_size
---@param calendar a calendar widget
---@param font_size an integer
-
----Link calendar to remind and task warrior in order to get events informations for each day
---@class function
+---Allow to get information from external calendar.
+--@usage mycalendar:set_link_to_external_calendar(boolean)
 --@name set_link_to_external_calendar
---@param calendar a calendar widget
---@param boolean true or false (false by default)
-
-local data = setmetatable( {}, { __mode = "k"})
-
-local properties = { "width","margin", "inter_margin", "cell_background_color", "cell_padding", "rounded_size", "text_color", "font_size", "title_background_color", "title_text_color", "title_font_size", "columns_lines_titles_background_color", "columns_lines_titles_text_color", "columns_lines_titles_font_size", "link_to_external_calendar"}
-
-menu_keys = { up = { "Up" },
-              down = { "Down" },
-              exec = { "Return", "Right" },
-              back = { "Left" },
-              close = { "Escape" } }
-
---need to add widget selection possibility
---local function grabber(mod, key, event)
---    if event == "release" then
---       return true
---    end
-
---    local sel = cur_menu.sel or 0
---    if util.table.hasitem(menu_keys.up, key) then
---        local sel_new = sel-1 < 1 and #cur_menu.items or sel-1
---        item_enter(cur_menu, sel_new)
---    elseif util.table.hasitem(menu_keys.down, key) then
---        local sel_new = sel+1 > #cur_menu.items and 1 or sel+1
---        item_enter(cur_menu, sel_new)
---    elseif sel > 0 and util.table.hasitem(menu_keys.exec, key) then
---        exec(cur_menu, sel)
---    elseif util.table.hasitem(menu_keys.back, key) then
---        cur_menu:hide()
---    elseif util.table.hasitem(menu_keys.close, key) then
---        get_parents(cur_menu):hide()
---    else
---        check_access_key(cur_menu, key)
---    end
---   
---    return true
---end
-function bind_click_to_toggle_visibility(calendar)
-  calendar.widget:buttons(util.table.join(
-    button({ }, 1, function()
-      if data[calendar].wibox then
-        if data[calendar].wibox.visible ~= true then 
-          calendar = generate_cal(calendar)
-          data[calendar].wibox = calendar.wibox
-            add_focus(calendar)
-          data[calendar].wibox.visible = true
-        else 
-          data[calendar].wibox.visible = false
-        end
-      else
-        calendar = generate_cal(calendar)
-        data[calendar].wibox = calendar.wibox
-            add_focus(calendar)
-        data[calendar].wibox.visible= true
-      end
-      return calendar
-    end
-    )
-))
-end
-
-function display_new_month( calendar,month, year)
-  
-  local month_label = os.date("%B", os.time{year=year, month=month, day=01})
-  local padding = data[calendar].cell_padding or 4 
-  local background_color = data[calendar].cell_background_color or "#00000066"
-  local rounded_size = data[calendar].rounded_size or 0.4
-  local text_color = data[calendar].text_color or "#ffffffff"
-  local font_size = data[calendar].font_size or 9
-  local title_background_color = data[calendar].title_background_color or background_color
-  local title_text_color = data[calendar].title_text_color or text_color
-  local title_font_size = data[calendar].title_font_size or font_size + 2
-  
-  local columns_lines_titles_background_color = data[calendar].columns_lines_titles_background_color or background_color
-  local columns_lines_titles_text_color = data[calendar].columns_lines_titles_text_color or text_color
-  local columns_lines_titles_font_size = data[calendar].columns_lines_titles_font_size or font_size
-  
-  local calendar_title =""
-  local month_labels = data[calendar].month_labels
-  if data[calendar].calendar_title == nil then
-    calendar_title = month_labels[month] .. " " .. year
-  else
-    calendar_title = string.gsub(data[calendar].calendar_title, "$year", year)
-    calendar_title = string.gsub(calendar_title, "$month", month_labels[month])
-  end
-  
-  local cell =helpers.generate_rounded_rectangle_with_text_in_image(calendar_title, 
-                                                                    padding, 
-                                                                    title_background_color, 
-                                                                    title_text_color, 
-                                                                    title_font_size, 
-                                                                    rounded_size)
-  data[calendar].displayed_month_year.image = capi.image.argb32(cell.width, cell.height, cell.raw_image)
-  
-  local last_day_of_current_month = tonumber(helpers.get_days_in_month(month, year))
-  local current_day_of_month= tonumber(os.date("%d")) 
-  local current_month = tonumber(os.date("%m"))
-  
-  local d=os.date('*t',os.time{year=year,month=month,day=01})
-  --We use Monday as first day of week
-  first_day_of_month = d['wday'] - 1
-  if first_day_of_month == 0 then first_day_of_month = 7 end 
-  data[calendar].first_day_widget = first_day_of_month
-  
-  --Update week numbers:
-  local weeks_numbers = helpers.get_ISO8601_weeks_number_of_month(month,year)
-  for i=1,6 do 
-    local cell = helpers.generate_rounded_rectangle_with_text_in_image(weeks_numbers[i], 
-                                                                        padding, 
-                                                                        columns_lines_titles_background_color, 
-                                                                        columns_lines_titles_text_color, 
-                                                                        columns_lines_titles_font_size, 
-                                                                        rounded_size)
-    data[calendar].weeks_numbers_widgets[i].image = capi.image.argb32(cell.width, cell.height, cell.raw_image)
-  end
-
-  local day_of_month = 0 
-  for i=1,42 do
-  --generate cells  before the first day
-    if i < first_day_of_month then
-      local cell = helpers.generate_rounded_rectangle_with_text_in_image( "--", 
-                                                                        padding, 
-                                                                        background_color, 
-                                                                        text_color, 
-                                                                        font_size, 
-                                                                        rounded_size)
-      data[calendar].days_of_month[i].widget.image = capi.image.argb32(cell.width, cell.height, cell.raw_image)
-      data[calendar].days_of_month[i].text = "--"
-      data[calendar].days_of_month[i].bg_color = background_color
-      data[calendar].days_of_month[i].fg_color = text_color
-    end
-    if i>= first_day_of_month and i < last_day_of_current_month + first_day_of_month then
-      if i == current_day_of_month + first_day_of_month -1 and current_month == month then
-        background = beautiful.bg_focus
-        color = beautiful.fg_focus
-      else  
-        background = background_color
-        color = text_color
-      end
-      day_of_month = day_of_month + 1
-      --Had 0 before the day if the day is inf to 10
-      if day_of_month < 10 then
-        day_of_month = "0" .. day_of_month
-      else
-        day_of_month = day_of_month ..""
-      end
-      local cell = helpers.generate_rounded_rectangle_with_text_in_image( day_of_month, 
-                                                                        padding, 
-                                                                        background, 
-                                                                        color, 
-                                                                        font_size, 
-                                                                        rounded_size)
-      data[calendar].days_of_month[i].widget.image = capi.image.argb32(cell.width, cell.height, cell.raw_image)
-      data[calendar].days_of_month[i].text = day_of_month 
-      data[calendar].days_of_month[i].bg_color = background
-      data[calendar].days_of_month[i].fg_color = color
-    end
-    if i >= last_day_of_current_month  + first_day_of_month then
-      local cell = helpers.generate_rounded_rectangle_with_text_in_image( "--", 
-                                                                        padding, 
-                                                                        background_color, 
-                                                                        text_color, 
-                                                                        font_size, 
-                                                                        rounded_size)
-      data[calendar].days_of_month[i].widget.image = capi.image.argb32(cell.width, cell.height, cell.raw_image)
-      data[calendar].days_of_month[i].text = "--"
-      data[calendar].days_of_month[i].bg_color = background_color
-      data[calendar].days_of_month[i].fg_color = text_color
-    end
-  end
-end
-
-function see_prev_month(calendar, month, year)
-  if month == 1 then
-    month = 12 
-    year = year -1 
-  else
-    month = month - 1
-  end
-  data[calendar].month = month
-  data[calendar].year = year
-  display_new_month(calendar,month, year)
-end
-function see_next_month(calendar, month, year)
-  if month == 12 then
-    month = 1 
-    year = year +1 
-  else
-    month = month + 1
-  end
-  data[calendar].month = month
-  data[calendar].year = year
-  display_new_month(calendar,month, year)
-end
-
-function generate_cal(calendar)
-  --all data that we put in data[calendar] that can be access for  each instance of calendar objetcs:
-  --data[calendar].displayed_month_year the widget image for month year title displayed
-  --data[calendar].month = the month displayed
-  --data[calendar].year = the year displayed
-  --data[calendar].days_of_month a table containing the widget of the day of month (empty or not )
-  --data[calendar].first_day_widget the number used as start for displaying day in the table data[calendar].days_of_month
-  --data[calendar].prev_month widget used to change displayed month to previous month
-  --data[calendar].next_month widget used to change displayed month to next month
-
-  local wibox_margin = data[calendar].margin or 2
-  local padding = data[calendar].cell_padding or 4 
-  local inter_margin = data[calendar].inter_margin or 2
-  local background_color = data[calendar].cell_background_color or "#00000066"
-  local rounded_size = data[calendar].rounded_size or 0.4
-  local text_color = data[calendar].text_color or "#ffffffff"
-  local font_size = data[calendar].font_size or 9
-  local title_background_color = data[calendar].title_background_color or background_color
-  local title_text_color = data[calendar].title_text_color or text_color
-  local title_font_size = data[calendar].title_font_size or font_size + 2
-  local columns_lines_titles_background_color = data[calendar].columns_lines_titles_background_color or background_color
-  local columns_lines_titles_text_color = data[calendar].columns_lines_titles_text_color or text_color
-  local columns_lines_titles_font_size = data[calendar].columns_lines_titles_font_size or font_size
-  --Get screen and position informations
-  local current_screen = capi.mouse.screen
-  local screen_geometry = capi.screen[current_screen].workarea
-  local screen_w = screen_geometry.x + screen_geometry.width
-  local screen_h = screen_geometry.y + screen_geometry.height
-  local mouse_coords = capi.mouse.coords()
-  local all_lines_height = 0
-  local max_width = 0 
-  --local day_labels = { "Mo", "Tu", "We", "Th", "Fr","Sa" , "Su"}
-  local day_labels ={}
-  day_labels = data[calendar].day_labels
---  for i=6,12 do 
---    table.insert(day_labels,(os.date("%a",os.time({month=2,day=i,year=2012})))) 
---  end
-  --local month_label = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" }
-  local month_labels = {}
-  month_labels = data[calendar].month_labels
---  for i=1,12 do 
---    table.insert(month_label,os.date("%B",os.time({month=i,day=1,year=2012}))) 
---  end
---  if data[calendar].day_labels ~= nil then
---    day_labels = data[calendar].day_labels
---  end
-    
-  data[calendar].days_of_month={}
-  local weeks_of_year={}
-  local current_day_of_month= tonumber(os.date("%d")) 
-  local month_displayed = tonumber(os.date("%m"))
-  local year_displayed = tonumber(os.date("%Y"))
-  
-  data[calendar].month = month_displayed
-  data[calendar].year = year_displayed
-  
-  local first_day_of_month = 0
-  --find the first week day of the month it is the number used as start for displaying day in the table data[calendar].days_of_month
-  local d=os.date('*t',os.time{year=year_displayed,month=month_displayed,day=01})
-  --We use Monday as first day of week
-  first_day_of_month = d['wday'] - 1
-  if first_day_of_month == 0 then first_day_of_month = 7 end 
-  data[calendar].first_day_widget = first_day_of_month
-  
-  local last_day_of_current_month = tonumber(helpers.get_days_in_month(month_displayed, year_displayed))
-  local max_day_cells = 42 
-  local day_of_month = 0 
-  local day_widgets={}
-  local calendar_title =""
-  if data[calendar].calendar_title == nil then
-    calendar_title = month_labels[month_displayed] .. " " .. year_displayed
-  else
-    calendar_title = string.gsub(data[calendar].calendar_title, "$year", year_displayed)
-    calendar_title = string.gsub(calendar_title, "$month", month_labels[month_displayed])
-  end
-
-  --generate title cells with displayed month and year
-  local cell_month_year =helpers.generate_rounded_rectangle_with_text_in_image(calendar_title, 
-                                                                    padding, 
-                                                                    title_background_color, 
-                                                                    title_text_color, 
-                                                                    title_font_size, 
-                                                                    rounded_size)
-  data[calendar].displayed_month_year= widget({ type ="imagebox", width=cell_month_year.width, height=cell_month_year.height })
-  data[calendar].displayed_month_year.image = capi.image.argb32(cell_month_year.width, cell_month_year.height, cell_month_year.raw_image)
-  margins[data[calendar].displayed_month_year]={top = wibox_margin + inter_margin, bottom = inter_margin + 2}
-  
-  --generate cells for precedent month and next month:
-  local cell_prev = helpers.generate_rounded_rectangle_with_text_in_image("<<", 
-                                                                    padding, 
-                                                                    title_background_color, 
-                                                                    title_text_color, 
-                                                                    title_font_size, 
-                                                                    rounded_size)
-  data[calendar].prev_month= widget({ type ="imagebox", width=cell_prev.width, height=cell_prev.height })
-  data[calendar].prev_month.image = capi.image.argb32(cell_prev.width, cell_prev.height, cell_prev.raw_image)
-  margins[data[calendar].prev_month]={top = wibox_margin + inter_margin, bottom = inter_margin + 2}
-  --Link action on the widget:
-  data[calendar].prev_month:buttons(util.table.join(
-       button({ }, 1, function()
-        see_prev_month(calendar, data[calendar].month, data[calendar].year)      
-       end)
-  ))
-
-  
-  local cell_next = helpers.generate_rounded_rectangle_with_text_in_image(">>", 
-                                                                    padding, 
-                                                                    title_background_color, 
-                                                                    title_text_color, 
-                                                                    title_font_size, 
-                                                                    rounded_size)
-  data[calendar].next_month= widget({ type ="imagebox", width=cell_next.width, height=cell_next.height })
-  data[calendar].next_month.image = capi.image.argb32(cell_next.width, cell_next.height, cell_next.raw_image)
-  margins[data[calendar].next_month]={top = wibox_margin + inter_margin, bottom = inter_margin + 2}
-  --Link action on the widget:
-  data[calendar].next_month:buttons(util.table.join(
-       button({ }, 1, function()
-        see_next_month(calendar, data[calendar].month, data[calendar].year)      
-       end)
-  ))
-  
-  all_lines_height = margins[data[calendar].displayed_month_year].top + margins[data[calendar].displayed_month_year].bottom + cell_month_year.height+ all_lines_height
-  max_width = wibox_margin + cell_next.width + cell_prev.width +cell_month_year.width + inter_margin *2 
-  --generate cells with day label
-  local days_widgets_line_height = 0
-  local days_widgets_width = 0
-  for i=1,7 do 
-    local cell = helpers.generate_rounded_rectangle_with_text_in_image(day_labels[i], 
-                                                                        padding, 
-                                                                        columns_lines_titles_background_color, 
-                                                                        columns_lines_titles_text_color, 
-                                                                        columns_lines_titles_font_size, 
-                                                                        rounded_size)
-    local cell_widget= widget({ type ="imagebox", width=cell.width, height=cell.height })
-    cell_widget.image = capi.image.argb32(cell.width, cell.height, cell.raw_image)
-    margins[cell_widget]={top = inter_margin, bottom = inter_margin + 2}
-    table.insert(day_widgets,cell_widget)
-    if cell.height + margins[cell_widget].top + margins[cell_widget].bottom > days_widgets_line_height then
-      days_widgets_line_height = cell.height+ margins[cell_widget].top + margins[cell_widget].bottom
-    end
-    days_widgets_width = days_widgets_width + cell.width
-  end
-    all_lines_height = all_lines_height + days_widgets_line_height
-  --generate empty cell (corner of days of week line and weeks of year column
-    local cell = helpers.generate_rounded_rectangle_with_text_in_image("__|", 
-                                                                        padding, 
-                                                                        columns_lines_titles_background_color, 
-                                                                        columns_lines_titles_text_color, 
-                                                                        columns_lines_titles_font_size, 
-                                                                        rounded_size)
-    local corner_widget= widget({ type ="imagebox", width=cell.width, height=cell.height })
-    corner_widget.image = capi.image.argb32(cell.width, cell.height, cell.raw_image)
-    margins[corner_widget]={top = inter_margin, bottom = inter_margin + 2}
-    
-    days_widgets_width = days_widgets_width + cell.width + 7*inter_margin
-    
-    if max_width < days_widgets_width then
-      max_width = days_widgets_width
-    end
-
-  --generate cells for weeks numbers  
-  data[calendar].weeks_numbers_widgets={}
-  local weeks_numbers = helpers.get_ISO8601_weeks_number_of_month(month_displayed,year_displayed)
-  for i=1,6 do 
-    local cell = helpers.generate_rounded_rectangle_with_text_in_image(weeks_numbers[i], 
-                                                                        padding, 
-                                                                        columns_lines_titles_background_color, 
-                                                                        columns_lines_titles_text_color, 
-                                                                        columns_lines_titles_font_size, 
-                                                                        rounded_size)
-    local cell_widget= widget({ type ="imagebox", width=cell.width, height=cell.height })
-    cell_widget.image = capi.image.argb32(cell.width, cell.height, cell.raw_image)
-    margins[cell_widget]={top = inter_margin}
-    table.insert(data[calendar].weeks_numbers_widgets,cell_widget)
-  end
-
-  local classic_cell_height = 0
-  for i=1,42 do
-  --generate cells  before the first day
-    if i < first_day_of_month then
-      local cell = helpers.generate_rounded_rectangle_with_text_in_image( "--", 
-                                                                        padding, 
-                                                                        background_color, 
-                                                                        text_color, 
-                                                                        font_size, 
-                                                                        rounded_size)
-      local cell_widget= widget({ type ="imagebox", width=cell.width, height=cell.height })
-      cell_widget.image = capi.image.argb32(cell.width, cell.height, cell.raw_image)
-      margins[cell_widget]={top = inter_margin}
-      table.insert(data[calendar].days_of_month, {text = "--", widget = cell_widget, bg_color = background_color, fg_color = text_color})
-      if cell.height + margins[cell_widget].top  > classic_cell_height then
-        classic_cell_height = cell.height+ margins[cell_widget].top 
-      end
-    end
-    if i>= first_day_of_month and i < last_day_of_current_month + first_day_of_month then
-      if i == current_day_of_month + first_day_of_month -1 then
-        background = beautiful.bg_focus
-        color = beautiful.fg_focus
-      else  
-        background = background_color
-        color = text_color
-      end
-      day_of_month = day_of_month + 1
-      --Had 0 before the day if the day is inf to 10
-      if day_of_month < 10 then
-        day_of_month = "0" .. day_of_month
-      else
-        day_of_month = day_of_month ..""
-      end
-      local cell = helpers.generate_rounded_rectangle_with_text_in_image( day_of_month, 
-                                                                        padding, 
-                                                                        background, 
-                                                                        color, 
-                                                                        font_size, 
-                                                                        rounded_size)
-      local cell_widget= widget({ type ="imagebox", width=cell.width, height=cell.height, name=day_of_month })
-      cell_widget.image = capi.image.argb32(cell.width, cell.height, cell.raw_image)
-      margins[cell_widget]={top = inter_margin}
-      table.insert(data[calendar].days_of_month, {text = day_of_month, widget = cell_widget, bg_color = background, fg_color = color})
-      if cell.height + margins[cell_widget].top  > classic_cell_height then
-        classic_cell_height = cell.height+ margins[cell_widget].top 
-      end
-    end
-    if i >= last_day_of_current_month  + first_day_of_month then
-      local cell = helpers.generate_rounded_rectangle_with_text_in_image( "--", 
-                                                                        padding, 
-                                                                        background_color, 
-                                                                        text_color, 
-                                                                        font_size, 
-                                                                        rounded_size)
-      local cell_widget= widget({ type ="imagebox", width=cell.width, height=cell.height, name = "--" })
-      cell_widget.image = capi.image.argb32(cell.width, cell.height, cell.raw_image)
-      margins[cell_widget]={top = inter_margin}
-      table.insert(data[calendar].days_of_month, {text = "--", widget = cell_widget, bg_color = background_color, fg_color = text_color})
-      if cell.height + margins[cell_widget].top  > classic_cell_height then
-        classic_cell_height = cell.height+ margins[cell_widget].top 
-      end
-    end
-  end
-  all_lines_height =wibox_margin  +all_lines_height + classic_cell_height * 6 
-  calendarbox=wibox({height = all_lines_height, width=(data[calendar].width or max_width) })
-  calendarbox.widgets={}
-  calendarbox.ontop =true
-
-  calendarbox.widgets={
-      {data[calendar].prev_month, data[calendar].displayed_month_year, data[calendar].next_month, layout = blingbling.layout.array.line_center },
-      {corner_widget, day_widgets[1], day_widgets[2], day_widgets[3], day_widgets[4], 
-       day_widgets[5], day_widgets[6], day_widgets[7], layout =blingbling.layout.array.line_center},
-      {data[calendar].weeks_numbers_widgets[1], data[calendar].days_of_month[1].widget,data[calendar].days_of_month[2].widget, data[calendar].days_of_month[3].widget, data[calendar].days_of_month[4].widget,
-       data[calendar].days_of_month[5].widget,data[calendar].days_of_month[6].widget,data[calendar].days_of_month[7].widget,layout =blingbling.layout.array.line_center}, 
-      {data[calendar].weeks_numbers_widgets[2], data[calendar].days_of_month[8].widget,data[calendar].days_of_month[9].widget, data[calendar].days_of_month[10].widget, data[calendar].days_of_month[11].widget,
-       data[calendar].days_of_month[12].widget,data[calendar].days_of_month[13].widget,data[calendar].days_of_month[14].widget,layout =blingbling.layout.array.line_center}, 
-      {data[calendar].weeks_numbers_widgets[3], data[calendar].days_of_month[15].widget,data[calendar].days_of_month[16].widget, data[calendar].days_of_month[17].widget, data[calendar].days_of_month[18].widget,
-       data[calendar].days_of_month[19].widget,data[calendar].days_of_month[20].widget,data[calendar].days_of_month[21].widget,layout =blingbling.layout.array.line_center}, 
-      {data[calendar].weeks_numbers_widgets[4], data[calendar].days_of_month[22].widget,data[calendar].days_of_month[23].widget, data[calendar].days_of_month[24].widget, data[calendar].days_of_month[25].widget,
-       data[calendar].days_of_month[26].widget,data[calendar].days_of_month[27].widget,data[calendar].days_of_month[28].widget,layout =blingbling.layout.array.line_center}, 
-      {data[calendar].weeks_numbers_widgets[5], data[calendar].days_of_month[29].widget,data[calendar].days_of_month[30].widget, data[calendar].days_of_month[31].widget, data[calendar].days_of_month[32].widget,
-       data[calendar].days_of_month[33].widget,data[calendar].days_of_month[34].widget,data[calendar].days_of_month[35].widget,layout =blingbling.layout.array.line_center},    
-      {data[calendar].weeks_numbers_widgets[6], data[calendar].days_of_month[36].widget,data[calendar].days_of_month[37].widget, data[calendar].days_of_month[38].widget, data[calendar].days_of_month[39].widget,
-       data[calendar].days_of_month[40].widget,data[calendar].days_of_month[41].widget,data[calendar].days_of_month[42].widget,layout =blingbling.layout.array.line_center},    
-       layout = blingbling.layout.array.stack_lines 
-                    }
-   
-  calendar_top_margin=0
-  calendarbox.screen = current_screen
-
-  --set the position of the wibox
-  calendarbox.y = mouse_coords.y < screen_geometry.y and screen_geometry.y or mouse_coords.y
-  calendarbox.x = mouse_coords.x < screen_geometry.x and screen_geometry.x or mouse_coords.x
-  calendarbox.y = calendarbox.y + calendarbox.height > screen_h and screen_h - calendarbox.height or calendarbox.y
-  calendarbox.x = calendarbox.x + calendarbox.width > screen_w and screen_w - calendarbox.width or calendarbox.x
-  
-  calendar.wibox = calendarbox
-  return calendar
-end
-
-
-function show_events(calendar,day_label, month, year, function_index)
-  local day = tonumber(day_label)
-  local month = month
-  local year = year
-
-  if function_index == nil then 
-    data[calendar].get_events_function_index = 1 
-  elseif function_index == 1 and data[calendar].get_events_function_index == #data[calendar].get_events_from then
-    data[calendar].get_events_function_index = 1
-  elseif function_index == -1 and data[calendar].get_events_function_index == 1 then
-    data[calendar].get_events_function_index = #data[calendar].get_events_from 
-  else
-    data[calendar].get_events_function_index = data[calendar].get_events_function_index + function_index
-  end
-  
-  day_events=data[calendar].get_events_from[data[calendar].get_events_function_index](day,month,year)
-  data[calendar].menu_events = blingbling.menu({ items = { {day_events,""}  }})
-  data[calendar].menu_events:show()
-end
-function hide_events(calendar)
-  if data[calendar].menu_events ~= nil then
-  data[calendar].menu_events:hide()
-  data[calendar].menu_events = nil
-  end
-end
-function add_focus(calendar)
-  local padding = data[calendar].cell_padding or 4 
-  local background_color = data[calendar].cell_background_color or "#00000066"
-  local rounded_size = data[calendar].rounded_size or 0.4
-  local text_color = data[calendar].text_color or "#ffffffff"
-  local font_size = data[calendar].font_size or 9
-  local title_background_color = data[calendar].title_background_color or background_color
-  local title_text_color = data[calendar].title_text_color or text_color
-  local title_font_size = data[calendar].title_font_size or font_size + 2
-  
-  --data[calendar].prev_month widget used to change displayed month to previous month
-  data[calendar].prev_month:add_signal("mouse::enter", function()
-    local cell_prev = helpers.generate_rounded_rectangle_with_text_in_image("<<", 
-                                                                    padding, 
-                                                                    beautiful.bg_focus, 
-                                                                    beautiful.fg_focus, 
-                                                                    title_font_size, 
-                                                                    rounded_size)
-    data[calendar].prev_month.image = capi.image.argb32(cell_prev.width, cell_prev.height, cell_prev.raw_image)
-  end)
-  data[calendar].prev_month:add_signal("mouse::leave", function()
-    local cell_prev = helpers.generate_rounded_rectangle_with_text_in_image("<<", 
-                                                                    padding, 
-                                                                    title_background_color, 
-                                                                    title_text_color, 
-                                                                    title_font_size, 
-                                                                    rounded_size)
-    data[calendar].prev_month.image = capi.image.argb32(cell_prev.width, cell_prev.height, cell_prev.raw_image)
-  end)
-
-  --data[calendar].next_month widget used to change displayed month to next month
- data[calendar].next_month:add_signal("mouse::enter", function()
-    local cell_next = helpers.generate_rounded_rectangle_with_text_in_image(">>", 
-                                                                    padding, 
-                                                                    beautiful.bg_focus, 
-                                                                    beautiful.fg_focus, 
-                                                                    title_font_size, 
-                                                                    rounded_size)
-  data[calendar].next_month.image = capi.image.argb32(cell_next.width, cell_next.height, cell_next.raw_image)
-    
-  end)
-  data[calendar].next_month:add_signal("mouse::leave", function()
-    local cell_next = helpers.generate_rounded_rectangle_with_text_in_image(">>", 
-                                                                    padding, 
-                                                                    title_background_color, 
-                                                                    title_text_color, 
-                                                                    title_font_size, 
-                                                                    rounded_size)
-    data[calendar].next_month.image = capi.image.argb32(cell_next.width, cell_next.height, cell_next.raw_image)
-  end)
-  --data[calendar].days_of_month a table containing the widget of the day of month (empty or not )
-  --data[calendar].first_day_widget the number used as start for displaying day in the table data[calendar].days_of_month
-  if data[calendar].link_to_external_calendar == true then
-    for i=1,42 do
-        data[calendar].days_of_month[i].widget:add_signal("mouse::enter", function()
-          if data[calendar].days_of_month[i].text ~= "--" then
-            local cell_next = helpers.generate_rounded_rectangle_with_text_in_image(data[calendar].days_of_month[i].text, 
-                                                                    padding, 
-                                                                    beautiful.bg_focus, 
-                                                                    beautiful.fg_focus, 
-                                                                    font_size, 
-                                                                    rounded_size)
-            data[calendar].days_of_month[i].widget.image = capi.image.argb32(cell_next.width, cell_next.height, cell_next.raw_image)
-            show_events(calendar,data[calendar].days_of_month[i].text, data[calendar].month, data[calendar].year)
-            
-            data[calendar].days_of_month[i].widget:buttons(util.table.join(
-              button({ }, 4, function()
-              hide_events(calendar)
-              show_events(calendar,data[calendar].days_of_month[i].text, data[calendar].month, data[calendar].year, 1)
-              end),
-              button({ }, 5, function()
-              hide_events(calendar)
-              show_events(calendar,data[calendar].days_of_month[i].text, data[calendar].month, data[calendar].year, (-1))
-              end)
-            ))
-          end
-        end)
-          
-        data[calendar].days_of_month[i].widget:add_signal("mouse::leave", function()
-          local cell_next = helpers.generate_rounded_rectangle_with_text_in_image(data[calendar].days_of_month[i].text, 
-                                                                    padding, 
-                                                                    data[calendar].days_of_month[i].bg_color, 
-                                                                    data[calendar].days_of_month[i].fg_color, 
-                                                                    font_size, 
-                                                                    rounded_size)
-          data[calendar].days_of_month[i].widget.image = capi.image.argb32(cell_next.width, cell_next.height, cell_next.raw_image)
-          hide_events(calendar)
-        end)
-    end
-  end
-end
-
----Modify the label for the days
 --@class function
---@name set_day_labels
---@param calendar a calendar widget
---@param your_day_labels a table with seven elements
+--@param boolean true or false
 
---function set_day_labels(calendar, your_day_labels )
---  if type(your_day_labels) ~= "table" then
---    data[calendar].day_labels =nil
---  else
---    nb_val = 0
---    for i,v in ipairs(your_day_labels) do
---      nb_val = 1 + nb_val
---    end
---    if nb_val ~= 7 then
---      data[calendar].day_labels =nil
---    else
---      data[calendar].day_labels ={}
---      for i,v in ipairs(your_day_labels) do
---        --check the length for utf-8 string
---        local _,utf8_str_len =string.gsub(v, "[^\128-\193]","")
---        if utf8_str_len >= 2 then
---          --get 2 first utf-8 char and set them in a string
---          local uchar =""
---          local index = 0
---          local utf8_str =""
---          for uchar in string.gfind(v, "([%z\1-\127\194-\244][\128-\191]*)") do
---            index = index + 1
---            if index <= 2 then
---              utf8_str = utf8_str .. uchar 
---            else
---              break
---            end
---          end
---          table.insert(data[calendar].day_labels,utf8_str) 
---        else
---          table.insert(data[calendar].day_labels,v .. " ")
---        end
---      end
---    end
---  end
---end
----Modify the label for the months 
+---Use a specific locale for the week days.
+--@usage mycalendar:set_locale
+--@name set_locale(locale)
 --@class function
---@name set_month_labels
---@param calendar a calendar widget
---@param your_month_labels a table with twelve elements
+--@param locale a string
 
---function set_month_labels(calendar, your_month_labels )
---  if type(your_month_labels) ~= "table" then
---    data[calendar].month_labels =nil
---  else
---    nb_val = 0
---    for i,v in ipairs(your_month_labels) do
---      nb_val = 1 + nb_val
---    end
---    if nb_val ~= 12 then
---      data[calendar].month_labels =nil
---    else
---      data[calendar].month_labels ={}
---      for i,v in ipairs(your_month_labels) do
---        table.insert(data[calendar].month_labels,v) 
---      end
---    end
---  end
---  return calendar
---end
----Define the format of the calendar
---User can set a string containing $month and $year
---@class function
---@param calendar a calendar widget
---@param your_string a string
-function set_calendar_title(calendar, your_string )
-  data[calendar].calendar_title =""
-  if type(your_string) == "string" and your_string ~= nil then
-    data[calendar].calendar_title = your_string
-  else
-    data[calendar].calendar_title = nil
-  end
-  return calendar
-end
-
-function set_calendar_locale(calendar, your_local)
-  os.setlocale(your_local)
-  data[calendar].day_labels ={}
-  --variable for lenght check --> hungarian abbreviate day name not the same length
-  local max_day_lenght=0
-
-  for i=6,12 do 
-    table.insert(data[calendar].day_labels,(os.date("%a",os.time({month=2,day=i,year=2012})))) 
-    --check the length for utf-8 string
-    local _,utf8_str_len =string.gsub(os.date("%a",os.time({month=2,day=i,year=2012})), "[^\128-\193]","")
-    if utf8_str_len > max_day_lenght then
-      max_day_lenght = utf8_str_len
-    end
-  end
-  --check length and add space at the begining
-  for i,v in ipairs(data[calendar].day_labels) do
-   local _,utf8_str_len =string.gsub(v, "[^\128-\193]","") 
-   local diff = max_day_lenght - utf8_str_len
-   if diff ~= 0 then
-    data[calendar].day_labels[i]=string.rep(" ",diff) .. v
-   end
-  end
-  data[calendar].month_labels = {}
-  for i=1,12 do 
-    table.insert(data[calendar].month_labels,os.date("%B",os.time({month=i,day=1,year=2012}))) 
-  end
-  return calendar
-end
--- Build properties function
-for _, prop in ipairs(properties) do
-    if not _M["set_" .. prop] then
-         _M["set_" .. prop] = function(calendar, value)
-             data[calendar][prop] = value
-             bind_click_to_toggle_visibility(calendar)
-             return calendar
-       end
-   end
-end
-
----Add new function in order to get events from external application
---This method let the taskwarrior and remind links intact and add your founction
---@usage my_cal:append_function_get_events_from(function(day, month, year)
+---Add new function in order to get events from external application.
+--This method let the taskwarrior and remind links intact and add your founction.
+--@usage mycalendar:append_function_get_events_from(function(day, month, year)
 --s="third function ".. " " .. day .. " " .. month .." " ..year
 --return s
 --end)
 --This  function display in the menu the string "third function 26 11 2011" for example.
---@param calendar a calendar
+--@class function
 --@param my_function a function that you write
-function append_function_get_events_from(calendar, my_function)
-  table.insert(data[calendar].get_events_from, my_function)
-  return calendar
+
+---Add new function in order to get events from external application and remove the existing function.
+--@usage mycalendar:clear_and_add_function_get_events_from(my_function)
+--@class function
+--@param my_function a function that you write
+
+local function apply_style(widget, style)
+	for k,v in pairs(style) do
+		if widget['set_'..k] ~= nil and type(widget['set_'..k]) == "function" then
+			widget['set_' ..k](widget, v)
+		end
+	end
 end
 
----Add new function in order to get events from external application and remove the existing function
---@param calendar a calendar
---@param my_function a function that you write
-function clear_and_add_function_get_events_from(calendar, my_function)
-  data[calendar].get_events_from={}
-  table.insert(data[calendar].get_events_from, my_function)
-  return calendar
-end
+function show_events(calendarbutton,day_label, month, year, function_index)
+  local day = tonumber(day_label)
+  local month = month
+  local year = year
 
----Create new calendar widget
---@param args a table like {type = "imagebox", image = an image file name} or {type = "textbox", text = a string}
---@return calendar a calendar 
-function new(args)
-  local args =args or {}
-  local calendar={}
-  data[calendar]={}
-  if  args == nil or args.type == "textbox" then
-    calendar.widget=widget({ type = "textbox" })
-    calendar.widget.text = args.text or "Calendar"
-  elseif args.type == "imagebox" then
-    calendar.widget=widget({ type = "imagebox" })
-    calendar.widget.image=capi.image(args.image)
+  if function_index == nil then
+    data[calendarbutton].get_events_function_index = 1
+  elseif function_index == 1 and data[calendarbutton].get_events_function_index == #data[calendarbutton].get_events_from then
+    data[calendarbutton].get_events_function_index = 1
+  elseif function_index == -1 and data[calendarbutton].get_events_function_index == 1 then
+    data[calendarbutton].get_events_function_index = #data[calendarbutton].get_events_from
+  else
+    data[calendarbutton].get_events_function_index = data[calendarbutton].get_events_function_index + function_index
   end
-  
-  data[calendar].day_labels ={}
-    --variable for lenght check --> hungarian abbreviate day name not the same length
-  local max_day_lenght=0
-  for i=6,12 do 
-    table.insert(data[calendar].day_labels,(os.date("%a",os.time({month=2,day=i,year=2012})))) 
-    --check the length for utf-8 string
-    local _,utf8_str_len =string.gsub(os.date("%a",os.time({month=2,day=i,year=2012})), "[^\128-\193]","")
-    if utf8_str_len > max_day_lenght then
-      max_day_lenght = utf8_str_len
-    end
-  end
-  --check length and add space at the begining
-  for i,v in ipairs(data[calendar].day_labels) do
-    local _,utf8_str_len =string.gsub(v, "[^\128-\193]","") 
-    local diff = max_day_lenght - utf8_str_len
-    if diff ~= 0 then
-      data[calendar].day_labels[i]=string.rep(" ",diff) .. v
-    end
-  end
-  
-  data[calendar].month_labels = {}
-  for i=1,12 do 
-    table.insert(data[calendar].month_labels,os.date("%B",os.time({month=i,day=1,year=2012}))) 
-  end
-  
-  for _, prop in ipairs(properties) do
-    calendar["set_" .. prop] = _M["set_" .. prop]
-  end
-  data[calendar].link_to_external_calendar = false
-  --This table contains the functions to access event from different agenda, can be extended.
-  data[calendar].get_events_from={
-  --reminds
-  function(day,month,year)
-  local day_events=util.pread('remind ~/.reminders ' .. day .. " " .. os.date("%B",os.time{year=year,month=month,day=day}) .." " .. year)
-  day_events = string.gsub(day_events,"\n\n+","\n")
-  day_events  =string.gsub(day_events,"\n*$","")
-  day_events="Remind:\n\n" .. day_events
-  return day_events
-  end,
-  --task_warrior
-  function(day,month,year)
-  local day_events=util.pread('task overdue due:' .. os.date("%m",os.time{year=year,month=month,day=day}) .."/"..day.."/" .. year)
-  local day_events = "Task warrior:\n" .. day_events 
-  return day_events
-  end,
-  }
  
-  bind_click_to_toggle_visibility(calendar)
-  calendar.append_function_get_events_from = append_function_get_events_from
-  --calendar.set_day_labels = set_day_labels
-  --calendar.set_month_labels = set_month_labels
-  calendar.set_calendar_title = set_calendar_title
-  calendar.set_calendar_locale =set_calendar_locale
-  calendar.clear_and_add_function_get_events_from = clear_and_add_function_get_events_from
-  return calendar
+  local day_events=data[calendarbutton].get_events_from[data[calendarbutton].get_events_function_index](day,month,year)
+  data[calendarbutton].info:set_text(day_events)
 end
 
-setmetatable(_M, { __call = function(_, ...) return new(...) end })
+local function add_focus(calendarbutton)
+	data[calendarbutton].next_month.widget:connect_signal("mouse::enter", function() apply_style(data[calendarbutton].next_month.widget,data[calendarbutton].focus_widget_style) end)	
+	data[calendarbutton].next_month.widget:connect_signal("mouse::leave", function() apply_style(data[calendarbutton].next_month.widget,data[calendarbutton].prev_next_widget_style) end)	
+	data[calendarbutton].prev_month.widget:connect_signal("mouse::enter", function() apply_style(data[calendarbutton].prev_month.widget,data[calendarbutton].focus_widget_style) end)	
+	data[calendarbutton].prev_month.widget:connect_signal("mouse::leave", function() apply_style(data[calendarbutton].prev_month.widget,data[calendarbutton].prev_next_widget_style) end)	
+	data[calendarbutton].date.widget:connect_signal("mouse::enter", function() apply_style(data[calendarbutton].date.widget,data[calendarbutton].focus_widget_style) end)	
+	data[calendarbutton].date.widget:connect_signal("mouse::leave", function() apply_style(data[calendarbutton].date.widget,data[calendarbutton].current_date_widget_style) end)	
+
+	if data[calendarbutton].link_to_external_calendar == true then
+		--remove all previous handlers :
+		for i=1,42 do 
+			if data[calendarbutton].month_days_cells[i].focus_handler ~= nil then
+				data[calendarbutton].month_days_cells[i].widget:disconnect_signal("mouse::enter", data[calendarbutton].month_days_cells[i].focus_handler )
+				data[calendarbutton].month_days_cells[i].widget:buttons({})
+			end
+		end
+		--get current day cell if we are in current month view
+		local	current_day_cell = tonumber(os.date("%d")) + data[calendarbutton].first_day_widget -1
+
+		for i=data[calendarbutton].first_day_widget,data[calendarbutton].last_day_widget -1 do
+			data[calendarbutton].month_days_cells[i].focus_handler =function() 
+				apply_style(data[calendarbutton].month_days_cells[i].widget, data[calendarbutton].focus_widget_style) 
+				show_events(calendarbutton,i -data[calendarbutton].first_day_widget +1  , data[calendarbutton].month, data[calendarbutton].year)
+			end
+			data[calendarbutton].month_days_cells[i].widget:connect_signal("mouse::enter", 
+				data[calendarbutton].month_days_cells[i].focus_handler
+			)
+			data[calendarbutton].month_days_cells[i].widget:buttons(util.table.join(
+				awful.button({ }, 4, function()
+					show_events(calendarbutton,i -data[calendarbutton].first_day_widget +1  , data[calendarbutton].month, data[calendarbutton].year, 1)
+				end),
+				awful.button({ }, 5, function()
+					show_events(calendarbutton,i -data[calendarbutton].first_day_widget +1  , data[calendarbutton].month, data[calendarbutton].year, -1)
+				end)
+			))
+			if current_day_cell ~= nil and i == current_day_cell then
+				data[calendarbutton].month_days_cells[i].widget:connect_signal("mouse::leave", 
+					function() 
+						if tonumber(os.date("%m")) == data[calendarbutton].month and data[calendarbutton].year == tonumber(os.date("%Y")) then 
+							apply_style(data[calendarbutton].month_days_cells[i].widget, data[calendarbutton].current_day_widget_style) 
+						else		
+							apply_style(data[calendarbutton].month_days_cells[i].widget, data[calendarbutton].days_of_month_widget_style)
+						end
+            local text_info = nil
+            if data[calendarbutton].default_info == nil then
+						  text_info = os.date("%A %B %d %Y")
+            end
+            if type(data[calendarbutton].default_info) == "string" then
+              text_info = data[calendarbutton].default_info
+            end
+            if type(data[calendarbutton].default_info) == "function" then
+              text_info = data[calendarbutton].default_info()
+            end
+            data[calendarbutton].info:set_text(text_info)
+					end
+				)
+			else
+				data[calendarbutton].month_days_cells[i].widget:connect_signal("mouse::leave", 
+					function() 
+						apply_style(data[calendarbutton].month_days_cells[i].widget, data[calendarbutton].days_of_month_widget_style) 
+						local text_info = nil
+            if data[calendarbutton].default_info == nil then
+						  text_info = os.date("%A %B %d %Y")
+            end
+            if type(data[calendarbutton].default_info) == "string" then
+              text_info = data[calendarbutton].default_info
+            end
+            if type(data[calendarbutton].default_info) == "function" then
+              text_info = data[calendarbutton].default_info()
+            end
+            data[calendarbutton].info:set_text(text_info)
+            --data[calendarbutton].info:set_text(data[calendarbutton].default_info or os.date("%A %B %d %Y"))
+					end
+				)
+			end
+		end
+	end
+end
+
+local function fill_calendar(calendarbutton)
+	local month_label = os.date("%B", os.time{year=data[calendarbutton].year, month=data[calendarbutton].month, day=01})
+	data[calendarbutton].date.widget:set_text(month_label .. " " .. data[calendarbutton].year)
+	
+	local weeks_numbers = helpers.get_ISO8601_weeks_number_of_month(data[calendarbutton].month,data[calendarbutton].year)
+	for i=1,6 do
+		data[calendarbutton].weeks_number[i].widget:set_text(weeks_numbers[i])
+	end
+	
+	local first_day_of_current_month = 0
+  --find the first week day of the month it is the number used as start for displaying day in the table data[calendar].days_of_month
+  local d=os.date('*t',os.time{year=data[calendarbutton].year,month=data[calendarbutton].month,day=01})
+  --We use Monday as first day of week
+  first_day_of_current_month = d['wday'] - 1
+  if first_day_of_current_month == 0 then first_day_of_current_month = 7 end
+  data[calendarbutton].first_day_widget = first_day_of_current_month
+	local last_day_of_current_month = tonumber(helpers.get_days_in_month(data[calendarbutton].month, data[calendarbutton].year))
+	data[calendarbutton].last_day_widget = last_day_of_current_month +first_day_of_current_month
+	local y=1
+	for i=1,42 do
+		if i< first_day_of_current_month then
+			data[calendarbutton].month_days_cells[i].widget:set_text(util.escape("--"))
+			apply_style(data[calendarbutton].month_days_cells[i].widget, data[calendarbutton].days_of_month_widget_style)
+		elseif i>= first_day_of_current_month and i < last_day_of_current_month +first_day_of_current_month  then
+			data[calendarbutton].month_days_cells[i].widget:set_text(y)
+			--TODO After seeing current month, next or prev month let the current date cell with the style of current date event for different month
+			--Better if we check that if we are not in current month and set the current day cell to normal color rather than applying normal color to all cell each time
+			apply_style(data[calendarbutton].month_days_cells[i].widget, data[calendarbutton].days_of_month_widget_style)
+			y=y+1
+		else
+			data[calendarbutton].month_days_cells[i].widget:set_text(util.escape("--"))
+			apply_style(data[calendarbutton].month_days_cells[i].widget, data[calendarbutton].days_of_month_widget_style)
+		end
+	end
+	--mark current day if it's current month
+	if tonumber(os.date("%m")) == data[calendarbutton].month and data[calendarbutton].year == tonumber(os.date("%Y")) then
+		local current_day = tonumber(os.date("%d"))
+		apply_style(data[calendarbutton].month_days_cells[current_day + first_day_of_current_month -1].widget, data[calendarbutton].current_day_widget_style)
+	end
+	--mark events from specific function
+	if data[calendarbutton].link_to_external_calendar == true then
+	--TODO get the days events and mark them with a style modification
+	end
+	--set current date in the info panel
+	local text_info = nil
+            if data[calendarbutton].default_info == nil then
+						  text_info = os.date("%A %B %d %Y")
+            end
+            if type(data[calendarbutton].default_info) == "string" then
+              text_info = data[calendarbutton].default_info
+            end
+            if type(data[calendarbutton].default_info) == "function" then
+              text_info = data[calendarbutton].default_info()
+            end
+
+           data[calendarbutton].info:set_text(text_info)
+--data[calendarbutton].info:set_text(data[calendarbutton].default_info or os.date("%A %B %d %Y"))
+end
+
+local function reload_and_fill(calendarbutton)
+	fill_calendar(calendarbutton)
+	add_focus(calendarbutton)
+end
+
+local function see_current_month(calendarbutton)
+	data[calendarbutton].month = tonumber(os.date("%m"))
+	data[calendarbutton].year = tonumber(os.date("%Y"))
+	fill_calendar(calendarbutton)
+	add_focus(calendarbutton)
+end
+
+local function see_prev_month(calendarbutton)
+  if data[calendarbutton].month == 1 then
+    data[calendarbutton].month = 12 
+    data[calendarbutton].year = data[calendarbutton].year -1 
+  else
+    data[calendarbutton].month = data[calendarbutton].month - 1
+  end
+  fill_calendar(calendarbutton)
+	add_focus(calendarbutton)
+end
+
+local function see_next_month(calendarbutton)
+  if data[calendarbutton].month == 12 then
+    data[calendarbutton].month = 1 
+    data[calendarbutton].year = data[calendarbutton].year +1 
+  else
+    data[calendarbutton].month = data[calendarbutton].month + 1
+  end
+  fill_calendar(calendarbutton)
+	add_focus(calendarbutton)
+end
+
+local function generate_calendar_box(calendarbutton)
+	data[calendarbutton].title = layout.fixed.horizontal()
+	--data[calendarbutton].title:fill_space(false)
+	data[calendarbutton].column = layout.fixed.vertical()
+	--data[calendarbutton].column:fill_space(true)
+	data[calendarbutton].week_days_line = layout.flex.horizontal()
+	--data[calendarbutton].week_days_line:fill_space(true)
+	data[calendarbutton].week_days_cells = {}
+	local line_height = 0
+	local line_width = 0
+	local max_line_width = 0
+	local all_lines_height = 0
+	local w,h =0
+	local title_line_length = 0
+	--margins left, right, top, bottom 
+	local ml = 2 
+	local mr = 2
+	local mt = 2
+	local mb = 2
+		--create first line with prev, current date and next widget
+	data[calendarbutton].date = {}
+	data[calendarbutton].next_month = {}
+	data[calendarbutton].prev_month = {}
+	
+	data[calendarbutton].prev_month.widget = text_box(data[calendarbutton].prev_next_widget_style)
+	data[calendarbutton].prev_month.widget:set_text(util.escape("<<")) 
+	data[calendarbutton].prev_month.widget:buttons(util.table.join(
+	        awful.button({ }, 1, function()
+						see_prev_month(calendarbutton)
+					end)
+	))
+
+	data[calendarbutton].prev_month.margin = layout.margin(data[calendarbutton].prev_month.widget, ml,mr,mt,mb)
+	
+	data[calendarbutton].date.widget = text_box(data[calendarbutton].current_date_widget_style)
+	data[calendarbutton].date.widget:set_text(os.date('%a %b %d, %H:%M')) 
+	data[calendarbutton].date.widget:buttons(util.table.join(
+	        awful.button({ }, 1, function()
+						see_current_month(calendarbutton)
+					end)
+	))
+
+	data[calendarbutton].date.margin = layout.margin(data[calendarbutton].date.widget, ml,mr,mt,mb)
+	
+	data[calendarbutton].next_month.widget = text_box(data[calendarbutton].prev_next_widget_style)
+	data[calendarbutton].next_month.widget:set_text(util.escape(">>")) 
+	data[calendarbutton].next_month.widget:buttons(util.table.join(
+	        awful.button({ }, 1, function()
+						see_next_month(calendarbutton)
+					end)
+	))
+	data[calendarbutton].next_month.margin = layout.margin(data[calendarbutton].next_month.widget, ml,mr,mt,mb)
+	
+	--add those 3 widgets and margins in the title line
+	data[calendarbutton].title:add(data[calendarbutton].prev_month.margin)
+	data[calendarbutton].title:add(data[calendarbutton].date.margin)
+	data[calendarbutton].title:add(data[calendarbutton].next_month.margin)
+	
+	--create the days of week line
+	line_width = 0
+	line_height = 0
+	max_height = 0
+	max_width =0 --used as reference in order to calculate the width of the wibox
+	data[calendarbutton].corner = {}
+	data[calendarbutton].corner.widget = text_box(data[calendarbutton].corner_widget_style)
+	data[calendarbutton].corner.widget:set_text(util.escape('/'))
+	data[calendarbutton].corner.margin = layout.margin(data[calendarbutton].corner.widget, ml,mr,mt,mb)
+	data[calendarbutton].week_days_line:add(data[calendarbutton].corner.margin)
+	for i=1,7 do
+		data[calendarbutton].week_days_cells[i] = {}
+		data[calendarbutton].week_days_cells[i].widget = text_box(data[calendarbutton].days_of_week_widget_style)
+		data[calendarbutton].week_days_cells[i].widget:set_text(data[calendarbutton].week_days[i])
+		data[calendarbutton].week_days_cells[i].margin = layout.margin(data[calendarbutton].week_days_cells[i].widget, ml,mr,mt,mb)
+	  w,h = data[calendarbutton].week_days_cells[i].margin:fit(0,0)
+		max_width = max_width > w and max_width or w
+		max_height = max_height > h and max_height or h
+		data[calendarbutton].week_days_line:add(data[calendarbutton].week_days_cells[i].margin)
+	end
+	
+	--Now that we have the longer width, we apply it to all the days of week widgets:
+	data[calendarbutton].corner.widget:set_width(max_width)
+	data[calendarbutton].corner.widget:set_height(max_height)
+	for i=1,7 do
+		data[calendarbutton].week_days_cells[i].widget:set_width(max_width)
+		data[calendarbutton].week_days_cells[i].widget:set_height(max_height)
+	end
+	-- And we can calculate and set the width for the next, prev and current date widget:
+	data[calendarbutton].date.widget:set_width(max_width *4) 
+	data[calendarbutton].date.widget:set_height(max_height)
+	w,h = data[calendarbutton].date.margin:fit(0,0)
+	local remains = math.floor((math.ceil((max_width + ml + mr )* 8 ) - (w + (ml+mr)*2))/2)
+	data[calendarbutton].prev_month.widget:set_width(remains )
+	data[calendarbutton].prev_month.widget:set_height(max_height )
+	data[calendarbutton].next_month.widget:set_width(remains )
+	data[calendarbutton].next_month.widget:set_height(max_height )
+
+	--We create the month day cells
+	data[calendarbutton].month_days_cells={}
+	for i=01,42 do
+		data[calendarbutton].month_days_cells[i]={}
+		data[calendarbutton].month_days_cells[i].widget = text_box(data[calendarbutton].days_of_month_widget_style)
+		data[calendarbutton].month_days_cells[i].widget:set_text(i)
+		data[calendarbutton].month_days_cells[i].widget:set_width(max_width)
+		data[calendarbutton].month_days_cells[i].widget:set_height(max_height)
+		data[calendarbutton].month_days_cells[i].margin = layout.margin(data[calendarbutton].month_days_cells[i].widget, ml,mr,mt,mb)
+	end
+	--Week numbers 
+	data[calendarbutton].weeks_number={}
+	for i=1,6 do
+		data[calendarbutton].weeks_number[i]={}
+		data[calendarbutton].weeks_number[i].widget = text_box(data[calendarbutton].weeks_number_widget_style)
+		data[calendarbutton].weeks_number[i].widget:set_text(i)
+		data[calendarbutton].weeks_number[i].widget:set_width(max_width)
+		data[calendarbutton].weeks_number[i].widget:set_height(max_height)
+		data[calendarbutton].weeks_number[i].margin = layout.margin(data[calendarbutton].weeks_number[i].widget,ml,mr,mt,mb)
+	end
+	--day cells are displayed in lines
+	data[calendarbutton].month_days_lines = {}
+	for i=1,6 do
+		data[calendarbutton].month_days_lines[i] = layout.flex.horizontal()
+		data[calendarbutton].month_days_lines[i]:add(data[calendarbutton].weeks_number[i].margin)
+		for y=1,7 do
+			data[calendarbutton].month_days_lines[i]:add(data[calendarbutton].month_days_cells[y +((i-1) *7)].margin)
+		end
+	end
+
+	--All the previous stuff are displayed in a column
+	data[calendarbutton].column:add(data[calendarbutton].title)
+	data[calendarbutton].column:add(data[calendarbutton].week_days_line)
+	for i=1,6 do
+		data[calendarbutton].column:add(data[calendarbutton].month_days_lines[i])
+	end
+	data[calendarbutton].fullview = layout.flex.horizontal()
+	data[calendarbutton].info = text_box( data[calendarbutton].info_cell_style)
+	local text_info = nil
+           if data[calendarbutton].default_info == nil then
+						  text_info = os.date("%A %B %d %Y")
+            end
+            if type(data[calendarbutton].default_info) == "string" then
+              text_info = data[calendarbutton].default_info
+            end
+            if type(data[calendarbutton].default_info) == "function" then
+              text_info = data[calendarbutton].default_info()
+            end
+
+--data[calendarbutton].info:set_text(os.date("%A %B %d %Y"))
+  data[calendarbutton].info:set_text(text_info)
+	data[calendarbutton].info:set_height((max_height + mt +mr) * 8 )
+	data[calendarbutton].info:set_width(math.ceil((max_width + ml + mr )* 8 ))
+	data[calendarbutton].fullview:add(data[calendarbutton].column)
+	data[calendarbutton].fullview:add(data[calendarbutton].info)
+	--dirty hack in order to get the good layout size
+	data[calendarbutton].info:fit(math.ceil((max_width + ml + mr )* 8 ), (max_height + mt +mr) * 8 )
+	data[calendarbutton].calendarbox = wibox(	{ontop = true, width = math.ceil((max_width + ml + mr )* 8 ) *2,
+																													height = (max_height + mt +mr) * 8})
+	data[calendarbutton].calendarbox.visible =false	
+	data[calendarbutton].calendarbox:set_widget(data[calendarbutton].fullview)
+	see_current_month(calendarbutton)
+end
+
+local function show_wibox(wibox)
+	local current_screen = capi.mouse.screen
+  local screen_geometry = capi.screen[current_screen].workarea
+  local screen_w = screen_geometry.x + screen_geometry.width
+  local screen_h = screen_geometry.y + screen_geometry.height
+  local mouse_coords = capi.mouse.coords()
+	local x,y =0
+	y = mouse_coords.y < screen_geometry.y and screen_geometry.y or mouse_coords.y
+	x = mouse_coords.x < screen_geometry.x and screen_geometry.x or mouse_coords.x
+  y = y + wibox.height > ( screen_h - 10)and  screen_h - (wibox.height + 10) or y + 10 
+  x = x + wibox.width > ( screen_w - 10) and screen_w - ( wibox.width + 10) or x + 10
+	wibox:geometry({	--width = wibox.width, 
+										--height = wibox.height,
+										x = x ,
+										y = y })
+	wibox.visible = true
+end
+
+local function toggle_visibility(calendarbutton)
+	calendarbutton:buttons( awful.util.table.join(
+		awful.button({}, 1, function()
+			if data[calendarbutton].calendarbox then
+				if data[calendarbutton].calendarbox.visible ~= true then
+					reload_and_fill(calendarbutton)
+						--w,h = data[calendarbutton].info:fit(0,0)
+	--helpers.dbg({w,h})
+show_wibox(data[calendarbutton].calendarbox)
+				else
+					data[calendarbutton].calendarbox.visible = false
+				end
+			else
+				generate_calendar_box(calendarbutton)
+					--w,h = data[calendarbutton].info:fit(0,0)
+	--helpers.dbg({w,h})
+					reload_and_fill(calendarbutton)
+show_wibox(data[calendarbutton].calendarbox)
+			end
+		end)
+		)	
+	)
+end
+local properties = { "prev_next_widget_style", "current_date_widget_style", "days_of_week_widget_style", "days_of_month_widget_style", "weeks_number_widget_style", "corner_widget_style", "current_day_widget_style", "focus_widget_style", "info_cell_style", "link_to_external_calendar" }
+
+-- Build properties function
+for _, prop in ipairs(properties) do
+	if not calendar["set_" .. prop] then
+		calendar["set_" .. prop] = function(calendarbutton, value)
+			data[calendarbutton][prop] = value
+			calendarbutton:emit_signal("widget::updated")
+			return calendarbutton
+    end
+  end
+end
+
+function append_function_get_events_from(calendarbutton, my_function)
+   table.insert(data[calendarbutton].get_events_from, my_function)
+   return self
+end
+
+function clear_and_add_function_get_events_from(calendarbutton, my_function)
+  data[calendarbutton].get_events_from={}
+  table.insert(data[calendarbutton].get_events_from, my_function)
+   return calendar
+end
+
+function set_locale(calendarbutton, locale)
+	os.setlocale(locale)
+	data[calendarbutton].week_days = {}
+	for i=6,12 do
+		table.insert(data[calendarbutton].week_days,(os.date("%a",os.time({month=2,day=i,year=2012}))))
+	end
+	data[calendarbutton].months = {}
+	for i=1,12 do
+		table.insert(data[calendarbutton].months,os.date("%B",os.time({month=i,day=1,year=2012})))
+	end
+end
+
+function set_default_info(calendarbutton, text)
+  data[calendarbutton].default_info = text
+end
+
+function calendar.new(args)
+	local args = args or {}
+ 
+  local calendarbutton = args.widget or awful.widget.textclock(" %a %b %d, %H:%M") 
+  data[calendarbutton] = {} 
+	--get days and month labels
+	if args.locale then
+		os.setlocale(locale)
+	end
+	data[calendarbutton].week_days = {}
+	for i=6,12 do
+		table.insert(data[calendarbutton].week_days,(os.date("%a",os.time({month=2,day=i,year=2012}))))
+	end
+	data[calendarbutton].months = {}
+	for i=1,12 do
+		table.insert(data[calendarbutton].months,os.date("%B",os.time({month=i,day=1,year=2012})))
+	end
+	data[calendarbutton].prev_next_widget_style = superproperties.calendar.prev_next_widget_style
+	data[calendarbutton].current_date_widget_style = superproperties.calendar.current_date_widget_style
+	data[calendarbutton].days_of_week_widget_style = superproperties.calendar.days_of_week_widget_style
+	data[calendarbutton].days_of_month_widget_style = superproperties.calendar.days_of_month_widget_style
+	data[calendarbutton].weeks_number_widget_style = superproperties.calendar.weeks_number_widget_style
+	data[calendarbutton].corner_widget_style = superproperties.calendar.corner_widget_style
+	data[calendarbutton].current_day_widget_style = superproperties.calendar.current_day_widget_style
+	data[calendarbutton].focus_widget_style = superproperties.calendar.focus_widget_style
+	data[calendarbutton].info_cell_style = superproperties.calendar.info_cell_style
+
+	toggle_visibility(calendarbutton)
+
+	data[calendarbutton].link_to_external_calendar = false
+  --This table contains the functions to access event from different agenda, can be extended.
+	data[calendarbutton].get_events_from={
+	--reminds
+	function(day,month,year)
+		local day_events=util.pread('remind -k\'echo %s\' ~/.reminders ' .. day .. " " .. os.date("%B",os.time{year=year,month=month,day=day}) .." " .. year)
+	  day_events = string.gsub(day_events,"\n\n+","\n")
+	  day_events  =string.gsub(day_events,"\n*$","")
+	  day_events="Remind:\n" .. day_events
+	  return day_events
+	 end,
+	--task_warrior
+	function(day,month,year)
+		local day_events=util.pread('task overdue due:' .. os.date("%m",os.time{year=year,month=month,day=day}) .."/"..day.."/" .. year)
+		local day_events = "Task warrior:\n" .. day_events 
+	  return day_events
+	 end,
+	}
+	for _, prop in ipairs(properties) do
+	       calendarbutton["set_" .. prop] = calendar["set_" .. prop]
+	end
+	calendarbutton.clear_and_add_function_get_events_from = clear_and_add_function_get_events_from
+	calendarbutton.append_function_get_events_from =append_function_get_events_from
+	calendarbutton.set_locale = set_locale	
+	calendarbutton.set_default_info = set_default_info
+	return calendarbutton
+end
+
+function calendar.mt:__call(...)
+  return calendar.new(...)
+end
+
+return setmetatable(calendar, calendar.mt)
+

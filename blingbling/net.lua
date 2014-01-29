@@ -1,166 +1,163 @@
-local awful = require("awful")
-local naughty = require("naughty")
-local helpers =require("blingbling.helpers")
-local string = require("string")
+-- @author cedlemo  
+
+local setmetatable = setmetatable
+local ipairs = ipairs
+local math = math
+local table = table
+local type = type
+local string = string
 local io = require("io")
 local os = require("os")
-local setmetatable = setmetatable
+local awful = require("awful")
+local naughty = require("naughty")
 local tonumber = tonumber
-local ipairs = ipairs
-local pairs =pairs
-local math = math
-local type=type
-local cairo = require("oocairo")
-local capi = { image = image, widget = widget, timer =timer }
-local layout = require("awful.widget.layout")
+local color = require("gears.color")
+local base = require("wibox.widget.base")
+local helpers = require("blingbling.helpers")
+local superproperties = require('blingbling.superproperties')
 
----Net widget
-module("blingbling.net")
+---Net widget displays two arrows as graph for download/upload activities
+--@module blingbling.widget
 
----Set the interface we monitor:
---mynet:set_interface(string) --> "eth0"
+---Set the net interface used to get information, default is eth0.
+--@usage mynet:set_interface(string)
 --@name set_interface
---@param graph the net graph
-
----Fill all the widget (width * height) with this color (default is transparent ) 
---mynet:set_background_color(string) -->"#rrggbbaa"
---@name set_background_color
 --@class function
---@graph graph the net graph
---@param color a string "#rrggbbaa" or "#rrggbb"
+--@param interface a string
 
---Define the top and bottom margin for the filed background and the graph
---mynet:set_v_margin(integer)
+---Define the top and bottom margin for the graph area.
+--@usage mynet:set_v_margin(integer)
 --@name set_v_margin
 --@class function
---@param graph the net graph
 --@param margin an integer for top and bottom margin
 
---Define the left and right margin for the filed background and the graph
---mynet:set_h_margin(integer)
+---Define the left and right margin for the graph area.
+--@usage mynet:set_h_margin()
 --@name set_h_margin
---@class function
---@param graph the net graph
+--@class function 
 --@param margin an integer for left and right margin
 
----Set the color of the graph (arrows) background
---mynet:set_background_graph_color(string) -->"#rrggbbaa"
+---Fill all the widget (width * height) with this color (default is none ).
+--@usage mynet:set_background_color(string) -->"#rrggbbaa"
+--@name set_background_color
+--@class function
+--@param color a string "#rrggbbaa" or "#rrggbb"
+
+---Fill the graph area background with this color (default is none).
+--@usage mynet:set_background_graph_color(string) -->"#rrggbbaa"
 --@name set_background_graph_color
 --@class function
---@param graph the net graph
 --@param color a string "#rrggbbaa" or "#rrggbb"
 
----Define the graph (arrows) color
---mynet:set_graph_color(string) -->"#rrggbbaa"
+---Define the graph/arrows color.
+--@usage mynet:set_graph_color(string) -->"#rrggbbaa"
 --@name set_graph_color
 --@class function
---@param graph the net graph
 --@param color a string "#rrggbbaa" or "#rrggbb"
 
---Define the graph (arrows) outline
---mynet:set_graph_line_color(string) -->"#rrggbbaa"
+---Set an outline on the arrows with this color.
+--@usage mynet:set_graph_line_color(string) -->"#rrggbbaa"
 --@name set_graph_line_color
 --@class function
---@param graph the net graph
 --@param color a string "#rrggbbaa" or "#rrggbb"
 
---Display upload and download values
---mynet:set_show_text(boolean) --> true or false
+---Display or not upload/download informations.
+--@usage mynet:set_show_text(boolean) --> true or false
 --@name set_show_text
 --@class function
---@param graph the net graph
---@param boolean true or false (default is false)
+--@param boolean true or false default is false
 
---Define the color of the text
---mynet:set_text_color(string) -->"#rrggbbaa"
+---Define the text color.
+--@usage mynet:set_text_color(string) -->"#rrggbbaa"
 --@name set_text_color
 --@class function
---@param graph the net graph
---@param color a string "#rrggbbaa" or "#rrggbb" defaul is white
-
---Define the background color of the text
---mynet:set_background_text_color(string) -->"#rrggbbaa"
---@name set_background_text_color
---@class
---@param graph the net graph
 --@param color a string "#rrggbbaa" or "#rrggbb"
 
----Define the text font size
---mynet:set_font_size(integer)
+---Set a color behind the text.
+--@usage mynet:set_text_background_color(string) -->"#rrggbbaa"
+--@name set_text_background_color
+--@class function
+--@param color a string "#rrggbbaa" or "#rrggbb"
+
+---Set the size of the font to use.
+--@usage mynet:set_font_size(integer)
 --@name set_font_size
 --@class function
---@param graph the net graph
 --@param size the font size
 
+---Set the font to use.
+--@usage mynet:set_font(string)
+--@name set_font
+--@class function
+--@param font a string that contains the font name family and weight
+
+
+local net = { mt = {} }
+
 local data = setmetatable({}, { __mode = "k" })
+local properties = {"interface", "width", "height", "v_margin", "h_margin", "background_color", "background_graph_color","graph_color", "graph_line_color","show_text", "text_color", "text_background_color" , "font_size","font" }
 
-local properties = { "interface", "width", "height", "v_margin", "h_margin", "background_color", "filled", "filled_color", "background_graph_color","graph_color", "graph_line_color","show_text", "text_color", "background_text_color" ,"label", "font_size","horizontal"}
+function net.draw(n_graph, wibox, cr, width, height)
 
-local function update(n_graph)
+  local v_margin =  superproperties.v_margin 
+  if data[n_graph].v_margin and data[n_graph].v_margin <= data[n_graph].height/4 then 
+      v_margin = data[n_graph].v_margin 
+  end
   
+  local h_margin = superproperties.h_margin
+  if data[n_graph].h_margin and data[n_graph].h_margin <= data[n_graph].width / 3 then 
+      h_margin = data[n_graph].h_margin 
+  end
+
+  local background_border = data[n_graph].background_border or superproperties.background_border
+  local background_color = data[n_graph].background_color or superproperties.background_color
+  local rounded_size = data[n_graph].rounded_size or superproperties.rounded_size
+  local graph_background_color = data[n_graph].graph_background_color or superproperties.graph_background_color
+  local graph_background_border = data[n_graph].graph_background_border or superproperties.graph_background_border
+  local graph_color = data[n_graph].graph_color or superproperties.graph_color
+  local graph_line_color = data[n_graph].graph_line_color or superproperties.graph_line_color
+  local text_color = data[n_graph].text_color or superproperties.text_color
+  local text_background_color = data[n_graph].text_background_color or superproperties.text_background_color
+  local font_size =data[n_graph].font_size or superproperties.font_size
+  local font = data[n_graph].font or superproperties.font
+
   local interface=""
   if data[n_graph].interface == nil then
     data[n_graph].interface = "eth0"
   end
   interface = data[n_graph].interface 
-  local v_margin = 2
-  if data[n_graph].v_margin and data[n_graph].v_margin <= data[n_graph].height/4 then 
-    v_margin = data[n_graph].v_margin 
-  end
-  local h_margin = 0
-  if data[n_graph].h_margin and data[n_graph].h_margin <= data[n_graph].width / 3 then 
-    h_margin = data[n_graph].h_margin 
-  end
   
   if data[n_graph].show_text then
-    --search the good width to display all text and graph and modify the widget width if necessary
-    local n_graph_surface=cairo.image_surface_create("argb32",data[n_graph].width, data[n_graph].height)
-    local n_graph_context = cairo.context_create(n_graph_surface)
-    if data[n_graph].font_size then
-      n_graph_context:set_font_size(data[n_graph].font_size)
-    else
-      n_graph_context:set_font_size(9)
+    cr:set_font_size(font_size)
+
+    if type(font) == "string" then
+      cr:select_font_face(font,nil,nil)
+    elseif type(font) == "table" then
+      cr:select_font_face(font.family or "Sans", font.slang or "normal", font.weight or "normal")
     end
+  --search the good width to display all text and graph and modify the widget width if necessary
     --Adapt widget width with max lenght text
     local text_reference="1.00mb"
-    local ext=n_graph_context:text_extents(text_reference)
+    local ext=cr:text_extents(text_reference)
     local text_width=ext.width +1 
     local arrow_width = 6 
     local arrows_separator = 2
     local total_width = (2* text_width) +(2*arrow_width) +(2 * ext.x_bearing)+ arrows_separator + (2*h_margin) 
-    --helpers.dbg({data[n_graph].width,total_width}) 
+
     data[n_graph].width = total_width
   else
     local arrow_width = 8
     local arrows_separator = 2
     data[n_graph].width = (arrow_width * 2) + arrows_separator + (2*h_margin)
   end
-  
-  n_graph_surface= nil
-  local n_graph_surface=cairo.image_surface_create("argb32",data[n_graph].width, data[n_graph].height)
-  local n_graph_context = cairo.context_create(n_graph_surface)
-  
-
-  --Generate Background (background widget)
-  if data[n_graph].background_color then
-    r,g,b,a = helpers.hexadecimal_to_rgba_percent(data[n_graph].background_color)
-    n_graph_context:set_source_rgba(r,g,b,a)
-    n_graph_context:paint()
+--TODO manage widget background
+  ----Generate Background (background widget)
+  if background_color then
+    r,g,b,a = helpers.hexadecimal_to_rgba_percent(background_color)
+    cr:set_source_rgba(r,g,b,a)
+    cr:paint()
   end
   
-  --Draw nothing or filled ( graph background)
-  if data[n_graph].filled  == true then
-    --fill the graph background
-    n_graph_context:rectangle(h_margin,v_margin, data[n_graph].width - (2*h_margin), data[n_graph].height - (2* v_margin))
-    if data[n_graph].filled_color then
-          r,g,b,a = helpers.hexadecimal_to_rgba_percent(data[n_graph].filled_color)
-          n_graph_context:set_source_rgba(r, g, b,a)
-    else
-          n_graph_context:set_source_rgba(0, 0, 0,0.5)
-    end
-    n_graph_context:fill()
-  end
-
 --Prepare the Text  
   local unit = { "b", "kb","mb","gb"}
   local unit_range = { 1, 1024, 1024^2, 1024^3 }
@@ -221,87 +218,71 @@ local function update(n_graph)
      uptext=string.format("%d",math.ceil(up_value))..up_unit
   end
 
-if data[n_graph].background_graph_color == nil then
-  data[n_graph].background_graph_color="#00000077"
-end
-if data[n_graph].graph_color == nil then
-  data[n_graph].graph_color="#7fb21946"--46"
-end
-if data[n_graph].graph_line_color == nil then
-  data[n_graph].graph_line_color="#7fb219"
-end
-
 --Drawn up arrow 
   helpers.draw_up_down_arrows(
-      n_graph_context,
+      cr,
       math.floor(data[n_graph].width/2 -1),
-      data[n_graph].height - v_margin,
+      height - v_margin,
       v_margin, 
       up_value, 
-      data[n_graph].background_graph_color, 
-      data[n_graph].graph_color,
-      data[n_graph].graph_line_color , 
+      graph_background_color, 
+      graph_color,
+      graph_line_color , 
       true)
   --Drawn down arrow
   helpers.draw_up_down_arrows(
-      n_graph_context,
+      cr,
       math.floor(data[n_graph].width/2)+1,
       v_margin,
       data[n_graph].height - v_margin,
       down_value,
-      data[n_graph].background_graph_color, 
-      data[n_graph].graph_color,
-      data[n_graph].graph_line_color , 
+      graph_background_color, 
+      graph_color,
+      graph_line_color , 
       false)
   
   if data[n_graph][interface.."_state"] ~= "up" or data[n_graph][interface.."_carrier"] ~= "1" then
-     n_graph_context:move_to(data[n_graph].width*2/5, v_margin)
-     n_graph_context:line_to(data[n_graph].width*3/5,data[n_graph].height - v_margin)
-     n_graph_context:move_to(data[n_graph].width *4/7, 2*v_margin)
-     n_graph_context:line_to(data[n_graph].width*3/7,data[n_graph].height - 2*v_margin)
-     n_graph_context:set_source_rgb(1,0,0)
-     n_graph_context:set_line_width(1)
-     n_graph_context:stroke()
+     cr:move_to(data[n_graph].width*2/5, v_margin)
+     cr:line_to(data[n_graph].width*3/5,data[n_graph].height - v_margin)
+     cr:move_to(data[n_graph].width *4/7, 2*v_margin)
+     cr:line_to(data[n_graph].width*3/7,height - 2*v_margin)
+     cr:set_source_rgb(1,0,0)
+     cr:set_line_width(1)
+     cr:stroke()
   end
 
   if data[n_graph].show_text == true then
   --Draw Text and it's background
-    if data[n_graph].font_size == nil then
-      data[n_graph].font_size = 9
-    end
-    n_graph_context:set_font_size(data[n_graph].font_size)
+    cr:set_font_size(font_size)
     
-    if data[n_graph].background_text_color == nil then
-     data[n_graph].background_text_color = "#000000dd" 
-    end
-    if data[n_graph].text_color == nil then
-     data[n_graph].text_color = "#ffffffff" 
-    end    
-    helpers.draw_text_and_background(n_graph_context, 
+    helpers.draw_text_and_background(cr, 
                                         down_text, 
                                         data[n_graph].width -h_margin, 
                                         v_margin , 
-                                        data[n_graph].background_text_color, 
-                                        data[n_graph].text_color,
+                                        text_background_color, 
+                                        text_color,
                                         false,
                                         false,
                                         true,
                                         true)
     
-    helpers.draw_text_and_background(n_graph_context, 
+    helpers.draw_text_and_background(cr, 
                                         up_text, 
                                         h_margin, 
-                                        data[n_graph].height -v_margin , 
-                                        data[n_graph].background_text_color, 
-                                        data[n_graph].text_color,
+                                        height -v_margin , 
+                                        text_background_color, 
+                                        text_color,
                                         false,
                                         false,
                                         false,
                                         false)
     
-end
-    n_graph.widget.image = capi.image.argb32(data[n_graph].width, data[n_graph].height, n_graph_surface:get_data())
+  end
 
+end
+
+function net.fit(n_graph, width, height)
+    return data[n_graph].width, data[n_graph].height
 end
 
 local function get_net_infos(n_graph)
@@ -355,42 +336,13 @@ end
 
 local function update_net(n_graph)
 if not n_graph then return end
-  data[n_graph].timer_update = capi.timer({timeout = 2})
-  data[n_graph].timer_update:add_signal("timeout", function()
-   get_net_infos(n_graph);
-     update(n_graph)
-     end)
+  data[n_graph].timer_update = timer({timeout = 2})
+  data[n_graph].timer_update:connect_signal("timeout", function()
+    get_net_infos(n_graph);
+    n_graph:emit_signal("widget::updated")
+  end)
   data[n_graph].timer_update:start()
-end
-
---- Set the graph height.
--- @param n_graph The net graph.
--- @param height The height to set.
-function set_height(n_graph, height)
-    if height >= 5 then
-        data[n_graph].height = height
-        update(n_graph)
-    end
-    return n_graph
-end
-
-function set_width(n_graph, width)
-    if width >= 5 then
-        data[n_graph].width = width
-        update(n_graph)
-    end
-    return n_graph
-end
-
--- Build properties function
-for _, prop in ipairs(properties) do
-    if not _M["set_" .. prop] then
-        _M["set_" .. prop] = function(n_graph, value)
-            data[n_graph][prop] = value
-            update(n_graph)
-            return n_graph
-        end
-    end
+  return n_graph
 end
 
 local function hide_ippopup_infos(n_graph)
@@ -409,9 +361,9 @@ local function show_ippopup_infos(n_graph)
     if data[n_graph][interface.."_carrier"] == "1" then --get local ip configuration
       ip_addr=string.match(string.match(all_infos,"%ssrc%s[%d]+%.[d%]+%.[%d]+%.[%d]+"), "[%d]+%.[d%]+%.[%d]+%.[%d]+")
       --get gateway
-      gateway=string.match(string.match(all_infos,"default%svia%s[%d]+%.[d%]+%.[%d]+%.[%d]+"), "[%d]+%.[d%]+%.[%d]+%.[%d]+")
+      gateway= string.match(string.match(all_infos,"default%svia%s[%d]+%.[d%]+%.[%d]+%.[%d]+"), "[%d]+%.[d%]+%.[%d]+%.[%d]+")
       --get external ip configuration
-      local ext_ip = awful.util.pread("curl --silent --connect-timeout 3 -S http://automation.whatismyip.com/n09230945.asp 2>&1")
+      local ext_ip = awful.util.pread("curl --silent --connect-timeout 3 -S http://ipecho.net/plain 2>&1")
       --if time out then no external ip
       if string.match(ext_ip,"timed%sout%!") then
         data[n_graph].ext_ip = "n/a" 
@@ -424,7 +376,7 @@ local function show_ippopup_infos(n_graph)
       --we check that the tor address have not been checked or that the elapsed time from the last request is not < 300 sec. whereas whatsmyip block the request
       if (data[n_graph].tor_ext_ip_timer == nil or data[n_graph].tor_ext_ip_timer + 300 < os.time()) and data[n_graph].ext_ip ~= "n/a" then
         if awful.util.pread("pgrep tor") ~= "" then
-          tor_ext_ip = awful.util.pread("curl --silent -S -x socks4a://localhost:9050 http://automation.whatismyip.com/n09230945.asp") 
+          tor_ext_ip = awful.util.pread("curl --silent -S -x socks4a://localhost:9050 http://ipecho.net/plain 2>&1") 
         else
           tor_ext_ip = "No tor"
         end
@@ -438,7 +390,7 @@ local function show_ippopup_infos(n_graph)
         tor_ext_ip= data[n_graph].tor_ext_ip
       end
       local separator ="\n|\n"
-      text="Local Ip:\t"..ip_addr..separator.."Gateway:\t\t".. gateway..separator .."External Ip:\t"..data[n_graph].ext_ip .. separator .. "Tor External Ip:\t" .. tor_ext_ip
+      text="Local Ip:\t"..ip_addr..separator.."Gateway:\t".. gateway..separator .."External Ip:\t"..data[n_graph].ext_ip .. separator .. "Tor External Ip:\t" .. tor_ext_ip
     else
       text="Wire is not connected on " .. interface
     end
@@ -454,45 +406,90 @@ local function show_ippopup_infos(n_graph)
 
 end
 
-function set_ippopup(n_graph)
-  n_graph.widget:add_signal("mouse::enter", function()
-      show_ippopup_infos(n_graph)
+---Add a popup on the widget that displays informations on the current network connection.
+--@usage mynet:set_ippopup()
+function net:set_ippopup()
+  self:connect_signal("mouse::enter", function()
+      show_ippopup_infos(self)
     end)
-    n_graph.widget:add_signal("mouse::leave", function()
-        hide_ippopup_infos(n_graph)
+  self:connect_signal("mouse::leave", function()
+        hide_ippopup_infos(self)
     end)
 end
 
---- Create a net graph widget.
--- @param args Standard widget() arguments. You should add width and height
--- key to set graph geometry.
--- @return A net graph widget.
-
-function new(args)
-    local args = args or {}
-    args.type = "imagebox"
-
-    local width = args.width or 100 
-    local height = args.height or 20
-
-    if width < 6 or height < 6 then return end
-
-    local n_graph = {}
-    n_graph.widget = capi.widget(args)
-    n_graph.widget.resize = false
-
-    data[n_graph] = { width = width, height = height, value = 0 ,nets={}}
-    -- Set methods
---    n_graph.add_value = add_value
-      n_graph.set_ippopup = set_ippopup
-    for _, prop in ipairs(properties) do
-        n_graph["set_" .. prop] = _M["set_" .. prop]
+--- Set the n_graph height.
+-- @param height The height to set.
+function net:set_height( height)
+    if height >= 5 then
+        data[self].height = height
+        self:emit_signal("widget::updated")
     end
+    return self
+end
 
-    n_graph.layout = args.layout or layout.horizontal.leftright
+--- Set the graph width.
+-- @param width The width to set.
+function net:set_width( width)
+    if width >= 5 then
+        data[self].width = width
+        self:emit_signal("widget::updated")
+    end
+    return self
+end
+
+-- Build properties function
+for _, prop in ipairs(properties) do
+    if not net["set_" .. prop] then
+        net["set_" .. prop] = function(n_graph, value)
+            data[n_graph][prop] = value
+            n_graph:emit_signal("widget::updated")
+            return n_graph
+        end
+    end
+end
+
+--- Create a n_graph widget.
+--@usage mynet = blingbling.net({width = 100, height = 20, interface = "eth0"})
+-- @param args Standard widget() arguments. You should add width and height and interface
+-- @return A graph widget.
+function net.new(args)
+    
+    local args = args or {}
+
+    args.width = args.width or 100
+    args.height = args.height or 20
+
+    if args.width < 5 or args.height < 5 then return end
+
+    local n_graph = base.make_widget()
+    
+    data[n_graph] = {}
+
+    for _, v in ipairs(properties) do
+      data[n_graph][v] = args[v] 
+    end
+    if args.interface then
+      data[n_graph].interface = args.interface
+    end
+    data[n_graph].nets = {}
+    --or
+    data[n_graph].value = 0
+    data[n_graph].max_value = 1
+
+    n_graph.draw = net.draw
+    n_graph.fit = net.fit
+    n_graph.set_ippopup = set_ippopup
+
+    for _, prop in ipairs(properties) do
+        n_graph["set_" .. prop] = net["set_" .. prop]
+    end
     update_net(n_graph)
---    set_ippopup(n_graph)
     return n_graph
 end
 
-setmetatable(_M, { __call = function(_, ...) return new(...) end })
+function net.mt:__call(...)
+    return net.new(...)
+end
+
+return setmetatable(net, net.mt)
+

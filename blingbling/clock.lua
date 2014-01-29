@@ -1,170 +1,114 @@
-local helpers =require("blingbling.helpers")
-local string = require("string")
-local setmetatable = setmetatable
-local ipairs = ipairs
-local math = math
-local table = table
-local type=type
-local cairo = require "oocairo"
-local capi = { image = image, widget = widget, timer=timer }
-local layout = require("awful.widget.layout")
----Not ready for now --
-module("blingbling.clock")
+--@author cedlemo
+local os = os
+local string = string
+local awful = require("awful")
+local textbox = require("wibox.widget.textbox")
+local text_box = require("blingbling.text_box")
+local days_of_week_in_kanji={ 
+"日曜日", "月曜日","火曜日","水曜日","木曜日","金曜日","土曜日"
+}
+local days_of_week_in_kana={
+"にちようび","げつようび","かようび","すいようび","もくようび","きんようび",
+"どようび"
+}
 
-local data = setmetatable({}, { __mode = "k" })
+local kanji_numbers={
+"一","ニ","三","四","五","六","七","八","九","十"
+}
+local kanas_numbers={
+"いち","に","さん","し","ご","ろく","しち","はち","く","じゅう"
+}
+local days_of_month_in_kanas={  
+"ついたち","ふつか","みっか","よっか","いつか","むいか","なのか","ようか",
+"ここのか","とおか","ジュウイチニチ","ジュウニニチ","ジュウサンニチ",
+"じゅうよっか", "ジュウゴニチ","ジュウロクニチ","ジュウシチニチ",
+"ジュウハチニチ","ジュウクニチ","はつか","ニジュウイチニチ","ニジュウニニチ",
+"ニジュウサンニチ","にじゅうよっか", "ニジュウゴニチ","ニジュウロクニチ",
+"ニジュウシチニチ","ニジュウハチニチ","ニジュウクニチ","サンジュウニチ",
+"サンジュウイチニチ"
+}
+---A clock module 
+--@module blingbling.clock
 
-local properties = { "width", "height", "v_margin","h_margin", "background_color", "filled", "filled_color", "tiles", "tiles_color", "c_graph_color", "c_graph_line_color", "show_text", "text_color", "background_text_color" ,"label", "font_size"}
-
-local function update(c_graph)
-  
-  local c_graph_surface=cairo.image_surface_create("argb32",data[c_graph].width, data[c_graph].height)
-  local c_graph_context = cairo.context_create(c_graph_surface)
-  
-  local v_margin = 2 
-  if data[c_graph].v_margin then 
-    v_margin = data[c_graph].v_margin 
-  end
-  local h_margin = 0
-  if data[c_graph].h_margin and data[c_graph].h_margin <= data[c_graph].width / 3 then 
-    h_margin = data[c_graph].h_margin 
-  end
-
---Generate Background (background widget)
-  if data[c_graph].background_color then
-    r,g,b,a = helpers.hexadecimal_to_rgba_percent(data[c_graph].background_color)
-    --helpers.dbg({r,g,b,a})
-    c_graph_context:set_source_rgba(r,g,b,a)
-    c_graph_context:paint()
-  end
-  
-  
-  --Draw nothing, tiles (default) or c_graph background (filled) 
-  data[c_graph].filled = true
-  if data[c_graph].filled  == true then
-    --fill the c_graph background
-    c_graph_context:rectangle(h_margin,v_margin, data[c_graph].width - (2*h_margin), data[c_graph].height - (2* v_margin))
-
-   -- if data[c_graph].filled_color then
-   --       r,g,b,a = helpers.hexadecimal_to_rgba_percent(data[c_graph].filled_color)
-   --       c_graph_context:set_source_rgba(r, g, b,a)
-   -- else
-   --       c_graph_context:set_source_rgba(0, 0, 0,1)
-   -- end
-    --c_graph_context:LinearGradient(0.25, 0.35, 0.75, 0.65)
-    gradient=cairo.pattern_create_linear (data[c_graph].width/2, 0, data[c_graph].width/2, data[c_graph].height - (0))
-    gradient:add_color_stop_rgba(0,  0, 0, 0, 0.5)
-    gradient:add_color_stop_rgba(0.5,  0, 0, 0, 0)
-    gradient:add_color_stop_rgba(1,  0, 0, 0, 0.5)
-    c_graph_context:set_source(gradient)
-    c_graph_context:fill()
-  elseif data[c_graph].filled ~= true and data[c_graph].tiles== false then
-      --draw nothing
-      else
-      --draw tiles
-        if data[c_graph].tiles_color then
-          r,g,b,a = helpers.hexadecimal_to_rgba_percent(data[c_graph].tiles_color)
-          c_graph_context:set_source_rgba(r, g, b,a)
-        else
-          c_graph_context:set_source_rgba(0, 0, 0,0.5)
-        end
-		helpers.draw_background_tiles(c_graph_context, data[c_graph].height, v_margin, data[c_graph].width ,h_margin )
-        c_graph_context:fill()
-  end
-  data[c_graph].show_text =true
-  if data[c_graph].show_text == true then
-  --Draw Text and it's background
-    if data[c_graph].font_size == nil then
-      data[c_graph].font_size = 9
-    end
-    c_graph_context:set_font_size(data[c_graph].font_size)
-    
-    if data[c_graph].background_text_color == nil then
-     data[c_graph].background_text_color = "#00000000" 
-    end
-    if data[c_graph].text_color == nil then
-     data[c_graph].text_color = "#7fb219" 
-    end    
-    
-    --local value = data[c_graph].values[1] * 100
-    if data[c_graph].label then
-      text=string.gsub(data[c_graph].label,"$percent", value)
-    else
-      text="  22:15  "
-    end
-
-    helpers.draw_text_and_background(c_graph_context, 
-                                        text, 
-                                        h_margin, 
-                                        (data[c_graph].height/2) + (data[c_graph].font_size)/2, 
-                                        data[c_graph].background_text_color, 
-                                        data[c_graph].text_color,
-                                        false,
-                                        false)
-  end
-  c_graph.widget.image = capi.image.argb32(data[c_graph].width, data[c_graph].height, c_graph_surface:get_data())
+local function get_day_of_month_in_kanji(n)
+	if n<=10 then
+		return kanji_numbers[n] .. "日"
+	elseif n<20 then
+		return kanji_numbers[10]..(kanji_numbers[n-10] or "") .. "日"
+	elseif n<30 then
+		return kanji_numbers[2]..kanji_numbers[10]..(kanji_numbers[n-20] or "").. "日"
+	elseif n<=31 then
+		return kanji_numbers[3]..kanji_numbers[10]..(kanji_numbers[n-30] or "").. "日"
+	end
+end
+local function get_month_in_kanji(n)
+	if n<=10 then
+		return kanji_numbers[n].."月"
+	elseif n<=12 then
+		return kanji_numbers[10]..(kanji_numbers[n-10] or "").."月"
+	end
+end
+romajis_days_of_month={}
+local function get_current_day_of_week_in_kanji()
+	return days_of_week_in_kanji[tonumber(os.date("%w") + 1)]
+end
+local function get_current_day_of_week_in_kanas()
+	return days_of_week_in_kana[tonumber(os.date("%w") + 1)]
+end
+local function get_current_day_of_month_in_kanji()
+	return get_day_of_month_in_kanji(tonumber(os.date("%d")))
+end
+local function get_current_day_of_month_in_kanas()
+  return days_of_month_in_kanas[tonumber(os.date("%d"))]
+end
+local function get_current_month_in_kanji()
+	return get_month_in_kanji(tonumber(os.date("%m")))
+end
+local function get_current_hour()
+	return os.date("%H")
+end
+local function get_current_minutes()
+	return os.date("%M")
+end
+local function get_current_time_in_japanese( str)
+	--if type(string) ~= "string" then
+	--	return nil
+	--end
+	local result = str or "%m、%d、%w、%H時%M分" 
+	result = string.gsub(result,"%%w",get_current_day_of_week_in_kanji())
+	result = string.gsub(result,"%%d",get_current_day_of_month_in_kanji())
+	result = string.gsub(result,"%%m",get_current_month_in_kanji())
+	result = os.date(result)
+	return result
 end
 
-local function update_clock(c_graph)
-  if not c_graph then return end
-  data[c_graph].clock_timer=capi.timer({timeout = 1})
-  data[c_graph].clock_timer:add_signal("timeout", function() 
-    update(c_graph)
-  end)
-  data[c_graph].clock_timer:start()
-  return c_graph
+local function japanese_clock(str, args)
+	local clock = text_box(args)
+	
+	clock:set_text(get_current_time_in_japanese( str ))
+	clocktimer = timer({ timeout = 1 })
+	clocktimer:connect_signal("timeout", function() clock:set_text(get_current_time_in_japanese( str )) end)
+	clocktimer:start()
+	--clock_tooltip= awful.tooltip({
+	--	objects = { clock },
+	--	timer_function= function()
+	--		return os.date("%B, %d, %A, %H:%M")
+	--	end,
+	--	})
+	return clock
 end
+---A clock that displays the date and the time in kanjis. This clock have a popup that shows the current date in your langage.
+--@usage myclock = blingbling.japanese_clock() --then just add it in your wibox like a classical widget
+--@name japanese_clock
+--@class function
+--@return a clock widget
 
-function set_height(c_graph, height)
-    if height >= 5 then
-        data[c_graph].height = height
-        update(c_graph)
-    end
-    return c_graph
-end
-
-function set_width(c_graph, width)
-    if width >= 5 then
-        data[c_graph].width = width
-        update(c_graph)
-    end
-    return c_graph
-end
-
--- Build properties function
-for _, prop in ipairs(properties) do
-    if not _M["set_" .. prop] then
-        _M["set_" .. prop] = function(c_graph, value)
-            data[c_graph][prop] = value
-            update(c_graph)
-            return c_graph
-        end
-    end
-end
-
-function new(args)
-    local args = args or {}
-    args.type = "imagebox"
-
-    local width = args.width or 100
-    local height = args.height or 20
-
-    if width < 5 or height < 5 then return end
-
-    local c_graph = {}
-    c_graph.widget = capi.widget(args)
-    c_graph.widget.resize = false
-
-    data[c_graph] = { width = width, height = height, values = {} }
-
-    -- Set methods
-
-    for _, prop in ipairs(properties) do
-        c_graph["set_" .. prop] = _M["set_" .. prop]
-    end
-
-    c_graph.layout = args.layout or layout.horizontal.leftright
-    update_clock(c_graph)
-    return c_graph
-end
-
-setmetatable(_M, { __call = function(_, ...) return new(...) end })
+return {
+	japanese = japanese_clock,
+  get_current_time_in_japanese = get_current_time_in_japanese,
+  get_current_day_of_week_in_kanji = get_current_day_of_week_in_kanji,
+  get_current_day_of_month_in_kanji = get_current_day_of_month_in_kanji,
+  get_current_month_in_kanji = get_current_month_in_kanji,
+  get_current_day_of_month_in_kanas = get_current_day_of_month_in_kanas,
+  get_current_day_of_week_in_kanas = get_current_day_of_week_in_kanas
+}
