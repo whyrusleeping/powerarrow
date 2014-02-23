@@ -108,134 +108,10 @@ myawesomemenu = {
   {"quit",                  awesome.quit }
 }
 
-docsmenu = {
-  {" C",                    "/home/whyrusleeping/Tools/doc_c", beautiful.c_icon},
-  {" JavaScript",           "/home/whyrusleeping/Tools/doc_js", beautiful.js_icon},
-  {" Ruby",                 "/home/whyrusleeping/Tools/doc_ruby", beautiful.ruby_icon} 
-}
-
-learningmenu = {
-  {" C",                    "/home/whyrusleeping/Books/C.sh", beautiful.c_icon},
-  {" JavaScript",           "/home/whyrusleeping/Books/JavaScrip.sh", beautiful.js_icon},
-  {" Ruby On Rails",        "/home/whyrusleeping/Books/RubyOnRails.sh", beautiful.ruby_icon}
-}
-
-myedumenu = {
-  {" Anki",                 "anki", beautiful.anki_icon},
-  -- {" Celestia",             "celestia", beautiful.celestia_icon},
-  -- {" Geogebra",             "geogebra", beautiful.geogebra_icon},
-  {" CherryTree",           "cherrytree", beautiful.cherrytree_icon},
-  {" Free42dec",            "/home/whyrusleeping/Tools/Free42Linux/gtk/free42dec", beautiful.free42_icon},
-  {" GoldenDict",           "goldendict", beautiful.goldendict_icon},
-  {" Qalculate",            "qalculate-gtk", beautiful.qalculate_icon},
-  {" Stellarium",           "stellarium", beautiful.stellarium_icon},
-  {" Vym",                  "vym", beautiful.vym_icon},
-  {" Wolfram Mathematica",  "/home/whyrusleeping/Tools/Wolfram/Mathematica", beautiful.mathematica_icon},
-  {" XMind",                "xmind", beautiful.xmind_icon}
-}
-
-mydevmenu = {
-  {" Android SDK Updater",  "android", beautiful.android_icon},
-  {" Eclipse",              "/home/whyrusleeping/Tools/eclipse/eclipse", beautiful.eclipse_icon},
-  {" Emacs",                "emacs", beautiful.emacs_icon},
-  {" GHex",                 "ghex", beautiful.ghex_icon},	
-  {" IntellijIDEA",         "/home/whyrusleeping/Tools/idea-IU-123.72/bin/idea.sh", beautiful.ideaUE_icon},
-  {" Kdiff3",               "kdiff3", beautiful.kdiff3_icon},
-  {" Meld",                 "meld", beautiful.meld_icon},
-  {" pgAdmin",              "pgadmin3", beautiful.pgadmin3_icon},
-  {" Qt Creator",           "qtcreator", beautiful.qtcreator_icon},
-  {" RubyMine",             "/home/whyrusleeping/Tools/rubymine.run", beautiful.rubymine_icon},
-  {" SublimeText",          "sublime_text", beautiful.sublime_icon},
-  {" Tkdiff",               "tkdiff", beautiful.tkdiff_icon}
-}
-
-mygraphicsmenu = {
-  {" Character Map",        "gucharmap", beautiful.gucharmap_icon},
-  {" Fonty Python",         "fontypython", beautiful.fontypython_icon},
-  {" gcolor2",              "gcolor2", beautiful.gcolor_icon},
-  {" Gpick",                "gpick", beautiful.gpick_icon},
-  {" Gimp",                 "gimp", beautiful.gimp_icon},
-  {" Inkscape",             "inkscape", beautiful.inkscape_icon},
-  {" recordMyDesktop",      "gtk-recordMyDesktop", beautiful.recordmydesktop_icon},
-  {" Screengrab",           "screengrab", beautiful.screengrab_icon},
-  {" Xmag",                 "xmag", beautiful.xmag_icon},
-  {" XnView",               "/home/whyrusleeping/Tools/XnView/xnview.sh", beautiful.xnview_icon}
-}
-
-mymultimediamenu = {
-  {" Audacious",            "audacious", beautiful.audacious_icon},
-  {" DeadBeef",             "deadbeef", beautiful.deadbeef_icon},
-  {" UMPlayer",             "umplayer", beautiful.umplayer_icon},
-  {" VLC",                  "vlc", beautiful.vlc_icon}
-}
-
-myofficemenu = {
-  {" Acrobat Reader",       "acroread", beautiful.acroread_icon},
-  {" DjView",               "djview", beautiful.djview_icon},
-  {" KChmViewer",           "kchmviewer", beautiful.kchmviewer_icon},
-  {" Leafpad",              "leafpad", beautiful.leafpad_icon},
-  {" LibreOffice Base",     "libreoffice --base", beautiful.librebase_icon},
-  {" LibreOffice Calc",     "libreoffice --calc", beautiful.librecalc_icon},
-  {" LibreOffice Draw",     "libreoffice --draw", beautiful.libredraw_icon},
-  {" LibreOffice Impress",  "libreoffice --impress", beautiful.libreimpress_icon},
-  {" LibreOffice Math",     "libreoffice --math", beautiful.libremath_icon},	
-  {" LibreOffice Writer",   "libreoffice --writer", beautiful.librewriter_icon},
-  {" Qpdfview",             "qpdfview", beautiful.qpdfview_icon},
-  {" ScanTailor",           "scantailor", beautiful.scantailor_icon},
-  {" Sigil",                "sigil", beautiful.sigil_icon}, 
-  {" TeXworks",             "texworks", beautiful.texworks_icon}
-}
-
-mywebmenu = {
-  {" Chromium",             "chromium-browser", beautiful.chromium_icon},
-  {" Droppox",              "dropbox", beautiful.dropbox_icon},
-  {" Dwb",                  "dwb", beautiful.dwb_icon},
-  {" Filezilla",            "filezilla", beautiful.filezilla_icon},
-  {" Firefox",              "firefox", beautiful.firefox_icon},
-  {" Gajim",                "gajim", beautiful.gajim_icon},
-  {" QuiteRSS",             "quiterss", beautiful.quiterss_icon},
-  {" Luakit",               "luakit", beautiful.luakit_icon},
-  {" Opera",                "opera", beautiful.opera_icon},
-  {" Qbittorrent",          "qbittorrent", beautiful.qbittorrent_icon},
-  {" Skype",                "skype", beautiful.skype_icon},
-  {" Tor",                  "/home/whyrusleeping/Tools/tor-browser_en-US/start-tor-browser", beautiful.vidalia_icon},
-  {" Thunderbird",          "thunderbird", beautiful.thunderbird_icon},
-  {" Weechat",              "lilyterm -x weechat-curses", beautiful.weechat_icon}
-}
-
-mysettingsmenu = {
-  {" CUPS Settings",        "sudo system-config-printer", beautiful.cups_icon},
-  {" JDK6 Settings",        "/opt/sun-jdk-1.6.0.37/bin/ControlPanel", beautiful.java_icon},
-  {" JDK7 Settings",        "/opt/oracle-jdk-bin-1.7.0.9/bin/ControlPanel", beautiful.java_icon},
-  {" Nvidia Settings",      "sudo nvidia-settings", beautiful.nvidia_icon},
-  {" Qt Configuration",     "qtconfig", beautiful.qt_icon},    
-  {" WICD",                 terminal .. " -x wicd-curses", beautiful.wicd_icon}
-}
-
-mytoolsmenu = {
-  {" Gparted",              "sudo gparted", beautiful.gparted_icon},
-  {" PeaZip",               "peazip", beautiful.peazip_icon},
-  {" TeamViewer",           "/home/rom/Tools/teamviewer7/teamviewer", beautiful.teamviewer_icon},
-  {" VirtualBox",           "VirtualBox", beautiful.virtualbox_icon},
-  {" Windows XP",           'VirtualBox --startvm "cb226b1a-3e7a-4a5c-b336-fc080ff687d1"', beautiful.windows_icon},
-  -- {" Vmware Workstation",   "vmware", beautiful.vmware_icon},
-  {" UNetbootin",           "sudo unetbootin", beautiful.unetbootin_icon},
-  {" Xfburn",               "xfburn", beautiful.xfburn_icon}
-}
-
 mymainmenu = awful.menu({ items = { 
   { " @wesome",             myawesomemenu, beautiful.awesome_icon },
-  {" development",          mydevmenu, beautiful.mydevmenu_icon},
-  {" education",            myedumenu, beautiful.myedu_icon},
-  {" graphics",             mygraphicsmenu, beautiful.mygraphicsmenu_icon},
-  {" multimedia",           mymultimediamenu, beautiful.mymultimediamenu_icon},	    
-  {" office",               myofficemenu, beautiful.myofficemenu_icon},
-  {" tools",                mytoolsmenu, beautiful.mytoolsmenu_icon},
-  {" web",                  mywebmenu, beautiful.mywebmenu_icon},
-  {" settings",             mysettingsmenu, beautiful.mysettingsmenu_icon},
   {" calc",                 "/usr/bin/gcalctool", beautiful.galculator_icon},
   {" htop",                 terminal .. " -x htop", beautiful.htop_icon},
-  {" sound",                "qasmixer", beautiful.wmsmixer_icon},
   {" file manager",         "spacefm", beautiful.spacefm_icon},
   {" root terminal",        "sudo " .. terminal, beautiful.terminalroot_icon},
   {" terminal",             terminal, beautiful.terminal_icon} 
@@ -290,7 +166,7 @@ mytasklist.buttons = awful.util.table.join(
                                           end))
 
 clockwidget = wibox.widget.textbox()
-vicious.register(clockwidget, vicious.widgets.date, '<span background="'..black..'" font="Mensch 12" color="'..base01..'">'..larrow..'</span><span background="'..base01..'" font="Mensch 10" color="'..base2..'"> %b %d <span font="Mensh 12">'..lthinsep..'</span> %R </span>', 60)
+vicious.register(clockwidget, vicious.widgets.date, '<span background="#000000" font="Mensch 12" color="'..base01..'">'..larrow..'</span><span background="'..base01..'" font="Mensch 10" color="'..base2..'"> %b %d <span font="Mensh 12">'..lthinsep..'</span> %R </span>', 60)
 clockwidget:buttons(awful.util.table.join(awful.button({ }, 1,
 function () awful.util.spawn_with_shell(calendar) end)))
 
