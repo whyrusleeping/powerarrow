@@ -19,20 +19,20 @@ awful.util.spawn_with_shell("cairo-compmgr &")
 --{{---| Error handling |---------------------------------------------------------------------------
 
 if awesome.startup_errors then
-naughty.notify({ preset = naughty.config.presets.critical,
-title = "Oops, there were errors during startup!",
-text = awesome.startup_errors })
+	naughty.notify({ preset = naughty.config.presets.critical,
+	title = "Oops, there were errors during startup!",
+	text = awesome.startup_errors })
 end
 do
-local in_error = false
-awesome.connect_signal("debug::error", function (err)
-if in_error then return end
-in_error = true
-naughty.notify({ preset = naughty.config.presets.critical,
-title = "Oops, an error happened!",
-text = err })
-in_error = false
-end)
+	local in_error = false
+	awesome.connect_signal("debug::error", function (err)
+	if in_error then return end
+		in_error = true
+		naughty.notify({ preset = naughty.config.presets.critical,
+		title = "Oops, an error happened!",
+		text = err })
+		in_error = false
+		end)
 end
 
 --{{---| Theme |------------------------------------------------------------------------------------
@@ -377,22 +377,7 @@ globalkeys = awful.util.table.join(
     awful.key({ modkey,           }, "Tab", function () awful.client.focus.history.previous()
         if client.focus then client.focus:raise() end end),
 
---{{---| Hotkeys |----------------------------------------------------------------------------------
-
---{{---| Terminals, shells und multiplexors |---------------------------------------------------------\-\\
-                                                                                                        --
-awful.key({ modkey },            "a",        function () awful.util.spawn_with_shell(configuration) end), --
-awful.key({        },            "Menu",     function () awful.util.spawn(ttmux) end),                    --
-awful.key({ modkey,           }, "Return",   function () awful.util.spawn(terminal) end),                 --
-awful.key({ modkey, "Control" }, "Return",   function () awful.util.spawn(terminalr) end),                --
-awful.key({ modkey, "Shift"   }, "Return",   function () awful.util.spawn(sakura) end),                   --
-awful.key({ modkey, "Control" }, "t",        function () awful.util.spawn(rttmux) end),                   --
-awful.key({ modkey },            "t",        function () awful.util.spawn(tetmux) end),                   --
-awful.key({ modkey,           }, "z",        function () awful.util.spawn(terminal .. " -x zsh") end),    --
-awful.key({ modkey, "Shift"   }, "z",        function () awful.util.spawn(terminalr .. " -x zsh") end),   --
-                                                                                                        --
---{{--------------------------------------------------------------------------------------------------/-//
-
+awful.key({ modkey,           }, "Return",   function () awful.util.spawn(terminal) end),  
 awful.key({ modkey, "Control" }, "r",        awesome.restart),
 awful.key({ modkey, "Shift",     "Control"}, "r", awesome.quit),
 awful.key({ modkey, "Control" }, "n",        awful.client.restore),
@@ -404,39 +389,14 @@ awful.key({ modkey, "Shift"   }, "l",        function () awful.tag.incnmaster(-1
 awful.key({ modkey, "Control" }, "h",        function () awful.tag.incncol( 1)         end),
 awful.key({ modkey, "Control" }, "l",        function () awful.tag.incncol(-1)         end),
 awful.key({ modkey,           }, "space",    function () awful.layout.inc(layouts,  1) end),
-awful.key({ modkey, "Shift"   }, "space",    function () awful.layout.inc(layouts, -1) end),
-awful.key({ modkey,           }, "x",        function () awful.util.spawn("xmind") end),
-awful.key({ modkey, "Shift"   }, "x",        function () awful.util.spawn("sudo xfe") end),
-awful.key({ modkey,           }, "s",        function () awful.util.spawn("spacefm") end),
-awful.key({ modkey },            "v",        function () awful.util.spawn_with_shell("gvim -geometry 92x58+710+24") end),    
-awful.key({ modkey },            "Menu",     function () awful.util.spawn_with_shell("gmrun") end),
-awful.key({ modkey },            "d",        function () awful.util.spawn_with_shell("goldendict") end),
-awful.key({ modkey },            "g",        function () awful.util.spawn_with_shell("gcolor2") end),
-awful.key({ modkey },            "Print",    function () awful.util.spawn_with_shell("screengrab") end),
-awful.key({ modkey, "Control"},  "Print",    function () awful.util.spawn_with_shell("screengrab --region") end),
-awful.key({ modkey, "Shift"},    "Print",    function () awful.util.spawn_with_shell("screengrab --active") end),
-awful.key({ modkey },            "7",        function () awful.util.spawn_with_shell("firefox") end),
-awful.key({ modkey },            "8",        function () awful.util.spawn_with_shell("chromium-browser") end),
-awful.key({ modkey },            "9",        function () awful.util.spawn_with_shell("dwb") end),
-awful.key({ modkey },            "0",        function () awful.util.spawn_with_shell("thunderbird") end),
-awful.key({ modkey },            "'",        function () awful.util.spawn_with_shell("leafpad") end),
-awful.key({ modkey },            "\\",       function () awful.util.spawn_with_shell("sublime_text") end),
-awful.key({ modkey },            "p",        function () awful.util.spawn_with_shell(sakura .. " -e htop") end),
-awful.key({ modkey },            "i",        function () awful.util.spawn_with_shell(iptraf) end),
-awful.key({ modkey },            "b",        function () awful.util.spawn_with_shell("~/Tools/rubymine.run") end),
-awful.key({ modkey },            "`",        function () awful.util.spawn_with_shell("xwinmosaic") end),
-awful.key({ modkey, "Control" }, "m",        function () awful.util.spawn_with_shell(musicplr) end),
-awful.key({ }, "XF86Calculator",             function () awful.util.spawn_with_shell("gcalctool") end),
-awful.key({ }, "XF86Sleep",                  function () awful.util.spawn_with_shell("sudo pm-hibernate") end),
-awful.key({ }, "XF86AudioPlay",              function () awful.util.spawn_with_shell("ncmpcpp toggle") end),
-awful.key({ }, "XF86AudioStop",              function () awful.util.spawn_with_shell("ncmpcpp stop") end),
-awful.key({ }, "XF86AudioPrev",              function () awful.util.spawn_with_shell("ncmpcpp prev") end),
-awful.key({ }, "XF86AudioNext",              function () awful.util.spawn_with_shell("ncmpcpp next") end),
-awful.key({ }, "XF86AudioLowerVolume",       function () couth.notifier:notify(couth.alsa:setVolume('Master','3dB-')) end),
-awful.key({ }, "XF86AudioRaiseVolume",       function () couth.notifier:notify(couth.alsa:setVolume('Master','3dB+')) end),
-awful.key({ }, "XF86AudioMute",              function () couth.notifier:notify(couth.alsa:setVolume('Master','toggle')) end)
+awful.key({ modkey, "Shift"   }, "space",    function () awful.layout.inc(layouts, -1) end))
 
-)
+
+--{{---| Hotkeys |----------------------------------------------------------------------------------
+
+--{{---| Terminals, shells und multiplexors |---------------------------------------------------------\-\\
+                                                                                                        --
+
 
 clientkeys = awful.util.table.join(
 awful.key({ modkey,           }, "f",        function (c) c.fullscreen = not c.fullscreen  end),
@@ -494,29 +454,18 @@ awful.rules.rules = {
 
 --{{---| Signals |----------------------------------------------------------------------------------
 
-client.add_signal("manage", function (c, startup)
+client.connect_signal("manage", function (c, startup)
     -- Add a titlebar
     -- awful.titlebar.add(c, { modkey = modkey })
-    c:add_signal("mouse::enter", function(c) if awful.layout.get(c.screen) ~= awful.layout.suit.magnifier
+    c:connect_signal("mouse::enter", function(c) if awful.layout.get(c.screen) ~= awful.layout.suit.magnifier
             and awful.client.focus.filter(c) then client.focus = c end end)
     if not startup then if not c.size_hints.user_position and not c.size_hints.program_position then
             awful.placement.no_overlap(c) awful.placement.no_offscreen(c) end end end)
-client.add_signal("focus", function(c) c.border_color = beautiful.border_focus end)
-client.add_signal("unfocus", function(c) c.border_color = beautiful.border_normal end)
-
---{{---| run_once |---------------------------------------------------------------------------------
-
-function run_once(prg)
-  awful.util.spawn_with_shell("pgrep -u $USER -x " .. prg .. " || (" .. prg .. ")") end
-
---{{---| run_once with args |-----------------------------------------------------------------------
-
-function run_oncewa(prg) if not prg then do return nil end end
-    awful.util.spawn_with_shell('ps ux | grep -v grep | grep -F ' .. prg .. ' || ' .. prg .. ' &') end
+client.connect_signal("focus", function(c) c.border_color = beautiful.border_focus end)
+client.connect_signal("unfocus", function(c) c.border_color = beautiful.border_normal end)
 
 --{{--| Autostart |---------------------------------------------------------------------------------
 
-os.execute("pkill compton")
 awful.util.spawn_with_shell("nitrogen --restore")
 awful.util.spawn_with_shell("synapse -s &")
 awful.util.spawn_with_shell("kill conky")
